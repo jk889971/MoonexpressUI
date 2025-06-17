@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import {
   useAccount,
   useReadContract,
-  useSimulateContract,
   useWriteContract,
   useBlockNumber,
   usePublicClient
@@ -232,6 +231,7 @@ export default function ClaimCard({
         abi: launchAbi,
         functionName: fnName,
         chainId: bscTestnet.id,
+        overrides: { gasLimit: 300000n },  // ← cap here too
       });
       // Refresh data immediately after claiming
       refetchAll();

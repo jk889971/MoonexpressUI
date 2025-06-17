@@ -138,6 +138,7 @@ export default function TradingPanel({
       functionName: "buy",
       chainId: bscTestnet.id,
       value: parseEther(amount),           // BNB ➜ wei
+      overrides: { gasLimit: 3500000n },   // ← manual ceiling
     });
     setAmount(""); setSelectedPercentage("");
     // now wait for the tx to land in a block…
@@ -152,6 +153,7 @@ export default function TradingPanel({
       abi: launchAbi,
       functionName: "sellTokens",
       args: [parseUnits(amount, 18)],      // tokens ➜ wei
+      overrides: { gasLimit: 500000n },   // ← same here
       chainId: bscTestnet.id,
     });
     setAmount(""); setSelectedPercentage("");
