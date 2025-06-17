@@ -1,0 +1,2 @@
+// src/lib/constants.ts
+export const FACTORY_ADDRESS = '0xbA1F669B8121235FC9cD3858EdE00533722F9254';

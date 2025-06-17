@@ -1,0 +1,41 @@
+//  ─── Generator ───────────────────────────────────────────────────────────
+generator client {
+  provider = "prisma-client-js"
+}
+
+//  ─── Datasource ──────────────────────────────────────────────────────────
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//  ─── Your models below ────────────────────────────────────────────────────
+model Launch {
+  launchAddress String   @id @db.VarChar(42)
+  tokenAddress  String   @db.VarChar(42)
+  description   String?  @db.Text
+  twitterUrl    String?  @db.VarChar(255)
+  telegramUrl   String?  @db.VarChar(255)
+  websiteUrl    String?  @db.VarChar(255)
+  createdAt     DateTime @default(now())
+  comments      Comment[]
+}
+
+model Profile {
+  wallet       String   @id @db.VarChar(42)
+  avatarIndex  Int
+  comments     Comment[]
+}
+
+model Comment {
+  id            Int      @id @default(autoincrement())
+  launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
+  launchAddress String   @db.VarChar(42)
+  parentId      Int?
+  parent        Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies       Comment[] @relation("CommentReplies")
+  wallet        String   @db.VarChar(42)
+  profile       Profile  @relation(fields: [wallet], references: [wallet])
+  text          String   @db.Text
+  createdAt     DateTime @default(now())
+}

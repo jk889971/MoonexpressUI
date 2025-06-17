@@ -1,0 +1,8 @@
+/* styles/rk-overrides.css  ---------------------------- */
+
+/* 1 – keep header & footer fully opaque */
+header,
+footer {
+  position: relative;          /* create stacking context   */
+  z-index: 10002;              /* just above the backdrop   */
+}
