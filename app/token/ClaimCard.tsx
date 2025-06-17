@@ -2,7 +2,6 @@
 "use client"
 
 import { useEffect, useState, useMemo, useRef } from "react"
-import { safeBigInt } from "@/lib/utils";
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,6 +13,7 @@ import {
 } from "wagmi"
 import { bscTestnet } from "@/lib/chain"
 import launchAbi from "@/lib/abis/CurveLaunch.json"
+import { encodeFunctionData } from "viem"
 
 export default function ClaimCard({
   launchAddress,
@@ -224,19 +224,39 @@ export default function ClaimCard({
   /* Click handler with immediate state refresh ----------------------- */
   /* ------------------------------------------------------------------ */
   async function handleClick() {
-    if (!launchAddress || !fnName) return;
+    if (!launchAddress || !fnName) return
+
     try {
-      await writeContractAsync({
+      // ① encode the call-data for whatever fnName is
+      const data = encodeFunctionData({
+        abi: launchAbi,
+        functionName: fnName,
+        // claim() & claimRefund() take no args; refund-if-LP-failed takes none either
+        args: [],
+      })
+
+      // ② on-chain estimate
+      const estimated = await publicClient.estimateGas({
+        to: launchAddress,
+        data,
+      })
+
+      // ③ add a 20% safety buffer
+      const gasLimit = estimated + (estimated / 5n)
+
+      // ④ actually send it
+      const hash = await writeContractAsync({
         address: launchAddress,
         abi: launchAbi,
         functionName: fnName,
         chainId: bscTestnet.id,
-        overrides: { gasLimit: 300000n },  // ← cap here too
-      });
-      // Refresh data immediately after claiming
-      refetchAll();
-    } catch (err) {
-      console.error("Claim failed:", err);
+        gasLimit,
+      })
+
+      // immediate UI refresh
+      refetchAll()
+    } catch (err: any) {
+      console.error("Claim failed:", err)
     }
   }
 

@@ -6,13 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient } from "wagmi";
 import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json";
-import { parseEther, parseUnits } from "viem";
+import { parseEther, parseUnits, encodeFunctionData } from "viem";
 import { bscTestnet } from "@/lib/chain";
-
-function pctOf(value: number, pct: number, isToken: boolean) {
-  const result = value * (pct / 100);
-  return isToken ? Math.floor(result).toString() : result.toFixed(6).replace(/\.?0+$/, "");
-}
 
 interface TradingPanelProps {
   tokenAddress: `0x${string}`;
@@ -132,33 +127,78 @@ export default function TradingPanel({
 
   async function handleBuy() {
     if (!isValidPositiveNumber(amount)) return;
+
+    const value = parseEther(amount);             // BNB → wei
+    // 1️⃣ encode the buy() call
+    const data = encodeFunctionData({
+      abi: launchAbi,
+      functionName: "buy",
+      args: [],
+    });
+
+    // 2️⃣ estimate gas on-chain
+    const estimated = await publicClient.estimateGas({
+      to: launchAddress,
+      data,
+      value,
+    });
+
+    // 3️⃣ add a 20% buffer
+    const gasLimit = estimated + estimated / 5n;
+
+    // 4️⃣ send the tx with your manual gasLimit
     const hash = await writeContractAsync({
       address: launchAddress,
       abi: launchAbi,
       functionName: "buy",
       chainId: bscTestnet.id,
-      value: parseEther(amount),           // BNB ➜ wei
-      overrides: { gasLimit: 3500000n },   // ← manual ceiling
+      value,
+      gasLimit,
     });
-    setAmount(""); setSelectedPercentage("");
-    // now wait for the tx to land in a block…
-    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 })
-    await refetchBal()
+
+    setAmount("");
+    setSelectedPercentage("");
+
+    // wait for 1 confirmation…
+    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+    await refetchBal();
   }
 
   async function handleSell() {
     if (!canSellNow || !isValidPositiveNumber(amount)) return;
+
+    const tokenAmt = parseUnits(amount, 18);      // tokens → wei
+    // 1️⃣ encode the sellTokens(uint256) call
+    const data = encodeFunctionData({
+      abi: launchAbi,
+      functionName: "sellTokens",
+      args: [tokenAmt],
+    });
+
+    // 2️⃣ estimate gas on-chain
+    const estimated = await publicClient.estimateGas({
+      to: launchAddress,
+      data,
+    });
+
+    // 3️⃣ add a 20% buffer
+    const gasLimit = estimated + estimated / 5n;
+
+    // 4️⃣ send the tx with your manual gasLimit
     const hash = await writeContractAsync({
       address: launchAddress,
       abi: launchAbi,
       functionName: "sellTokens",
-      args: [parseUnits(amount, 18)],      // tokens ➜ wei
-      overrides: { gasLimit: 500000n },   // ← same here
+      args: [tokenAmt],
       chainId: bscTestnet.id,
+      gasLimit,
     });
-    setAmount(""); setSelectedPercentage("");
-    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 })
-    await refetchBal()
+
+    setAmount("");
+    setSelectedPercentage("");
+
+    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+    await refetchBal();
   }
 
   useEffect(() => {

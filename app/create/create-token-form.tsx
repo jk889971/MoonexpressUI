@@ -17,6 +17,7 @@ import {
   useReadContract,
   useAccount,
   useBalance,
+  usePublicClient,
 } from 'wagmi'
 import { parseEther, formatEther } from "viem"
 import { bscTestnet } from '@/lib/chain'
@@ -63,6 +64,8 @@ export default function CreateTokenForm() {
   const [isDragging, setIsDragging] = useState(false)
 
   const [selectedAmountButton, setSelectedAmountButton] = useState<string | null>(null)
+
+  const publicClient = usePublicClient({ chainId: bscTestnet.id });
 
   // Prevent default browser "snatch" behavior and track dragging globally
   useEffect(() => {
@@ -212,19 +215,33 @@ export default function CreateTokenForm() {
 
   //── “Continue” CLICK: close buy‐modal, open success modal ─────────────────────
   const handleContinue = async () => {
-    setShowModal(false)
+   setShowModal(false)
 
-    if (!sim?.request) {
-      addToast(simError?.message || "Simulation failed")
-      return
-    }
+   if (!sim?.request) {
+     addToast(simError?.message || "Simulation failed")
+     return
+   }
 
-    try {
-      await writeContract(sim.request)     // wallet pops
-    } catch (e: any) {
-      addToast(e?.shortMessage || "Tx rejected")
-    }
-  }
+   try {
+     // ➋ estimate exactly how much gas this call will need:
+     const estimated = await publicClient.estimateGas({
+       to: FACTORY_ADDRESS,
+       data: sim.request.data,
+       value:   sim.request.value,
+     })
+
+     // ➌ add a 20% safety buffer:
+     const gasLimit = estimated + (estimated / 5n)
+
+     // ➍ invoke the writeContract with the manual gasLimit
+     await writeContract({
+       ...sim.request,
+       gasLimit,
+     })
+   } catch (e: any) {
+     addToast(e?.shortMessage || "Tx rejected")
+   }
+ }
 
   /**************************************************************************
  *  Δ  PREPARE write()
@@ -249,9 +266,6 @@ export default function CreateTokenForm() {
       durationSec ?? 0n,
     ],
     value: creatorPreBuys ? parseEther(preBuyAmount || "0") : undefined,
-    overrides: {
-      gasLimit: 2500000n,
-    },
     chainId: bscTestnet.id,
     // wagmi v2 uses react-query options:
     query: {
