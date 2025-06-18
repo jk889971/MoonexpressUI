@@ -165,80 +165,94 @@ export default function TradingPanel({
   }
 
   async function handleSell() {
-    if (!canSellNow || !amount) return;
-
-    // Convert to whole tokens (remove decimals)
-    const wholeTokens = Math.floor(Number(amount));
-    
-    // Validate token amount
-    if (wholeTokens <= 0 || wholeTokens > allocated) {
-      console.error("Invalid token amount");
-      return;
-    }
-
-    // Convert to contract units (wei)
-    const tokenAmt = parseUnits(wholeTokens.toString(), 18);
+    if (!canSellNow || !amount || !wallet) return;
 
     try {
-      // 1️⃣ Verify contract conditions
-      const canSell = await publicClient.readContract({
-        address: launchAddress,
-        abi: launchAbi,
-        functionName: "canSell",
-        args: [tokenAmt],
-      });
-      
-      if (!canSell) {
-        console.error("Selling not allowed at this time");
+      // 1. Convert and validate amount
+      const sellAmount = Math.floor(Number(amount));
+      if (sellAmount <= 0 || isNaN(sellAmount)) {
+        console.error("Invalid sell amount");
         return;
       }
 
-      // 2️⃣ Encode the transaction
+      // 2. Get buyer data
+      const buyerData = await publicClient.readContract({
+        address: launchAddress,
+        abi: [
+          {
+            inputs: [{ name: '', type: 'address' }],
+            name: 'buyers',
+            outputs: [
+              { name: 'bnbPaid', type: 'uint256' },
+              { name: 'tokensAllocated', type: 'uint256' },
+              { name: 'claimed', type: 'bool' },
+            ],
+            stateMutability: 'view',
+            type: 'function',
+          },
+        ],
+        functionName: 'buyers',
+        args: [wallet],
+      });
+
+      // 3. Verify allocation
+      const allocatedTokens = Number(buyerData[1]) / 1e18;
+      if (sellAmount > allocatedTokens) {
+        console.error("Cannot sell more than allocated");
+        return;
+      }
+
+      // 4. Prepare transaction
+      const tokenAmt = parseUnits(sellAmount.toString(), 18);
+      
+      // 5. Encode the sell call
       const data = encodeFunctionData({
         abi: launchAbi,
         functionName: "sellTokens",
         args: [tokenAmt],
       });
 
-      // 3️⃣ Estimate gas
+      // 6. Estimate gas with buffer (like in handleBuy)
       const estimated = await publicClient.estimateGas({
         to: launchAddress,
         data,
+        account: wallet,
       });
 
-      // 4️⃣ Add buffer and send transaction
-      const gasLimit = estimated + estimated / 5n;
-      
+      // Add 20% buffer (same as buy)
+      const gasLimit = estimated + (estimated / 5n);
+
+      // 7. Execute transaction with proper gas
       const hash = await writeContractAsync({
         address: launchAddress,
         abi: launchAbi,
         functionName: "sellTokens",
         args: [tokenAmt],
         chainId: bscTestnet.id,
-        gasLimit,
+        gas: gasLimit, // Use the calculated gas limit
       });
 
-      // Reset UI state
+      // Reset UI
       setAmount("");
       setSelectedPercentage("");
 
       // Wait for confirmation
-      await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+      await publicClient.waitForTransactionReceipt({ hash });
       await refetchBal();
-    } catch (e: any) {
-      const contractError = getContractError(e, {
+      await refetchBuyer();
+
+    } catch (error: any) {
+      console.error("Sell error:", error);
+      
+      const contractError = getContractError(error, {
         abi: launchAbi,
         functionName: 'sellTokens'
       });
       
       if (contractError) {
         console.error("Contract error:", contractError.shortMessage);
-        // Handle specific errors
-        if (contractError.data?.errorName === 'InvalidAmount') {
-          console.error("Amount must be whole number and within allocated tokens");
-        }
       } else {
-        console.error("Transaction error:", e.shortMessage || e.message);
+        console.error("Transaction error:", error.shortMessage || error.message);
       }
     }
   }
