@@ -13,7 +13,7 @@ type Bar = {
 };
 
 const MIN = 60_000;
-const WINDOW = 1_000n;
+const WINDOW = 49_000n;
 
 const bucket = (ms: number) => ms - (ms % MIN);
 
@@ -33,9 +33,13 @@ function createFeed(
     pricescale: number;
   }
 ) {
+  // first see if we have a custom RPC URL
+  const rpcUrl = process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL
+    || 'https://bsc-testnet-rpc.bnbchain.org'; // fallback
+
   const client = createPublicClient({
     chain: bscTestnet,
-    transport: http(),
+    transport: http(rpcUrl),
   });
 
   const isMarketcap = readFn === 'getLiveMarketCapUsd';
@@ -52,41 +56,13 @@ function createFeed(
 
   const bars: Bar[] = [];
 
-  async function safeGetLogs(opts: {
-    address: `0x${string}`,
-    event: any,
-    fromBlock: bigint,
-    toBlock: bigint
-  }): Promise<any[]> {
-    const { address, event, fromBlock, toBlock } = opts;
-
-    // base-case: nothing left
-    if (toBlock < fromBlock) return [];
-
-    try {
-      // optimistic single call
-      return await client.getLogs({ address, event, fromBlock, toBlock });
-    } catch (err: any) {
-      // only split if we actually hit the RPC hard limit
-      if (err?.message?.includes('limit exceeded') && toBlock !== fromBlock) {
-        const mid = fromBlock + (toBlock - fromBlock) / 2n;
-        const first  = await safeGetLogs({ address, event, fromBlock, toBlock: mid });
-        const second = await safeGetLogs({ address, event, fromBlock: mid + 1n, toBlock });
-        return [...first, ...second];
-      }
-      // re-throw any other error
-      throw err;
-    }
-  }
-
   async function loadHistory() {
     if (bars.length) return;
 
-    try {
     const latest = await client.getBlockNumber();
     for (let from = deployBlock; from <= latest; from += WINDOW) {
       const to = from + WINDOW > latest ? latest : from + WINDOW;
-      const logs = await safeGetLogs({ address: launch, event, fromBlock: from, toBlock: to });
+      const logs = await client.getLogs({ address: launch, event, fromBlock: from, toBlock: to });
 
       for (const log of logs) {
         const { priceUsd, marketCapUsd, timestamp } = log.args as any;
@@ -119,10 +95,6 @@ function createFeed(
         time: bucket(Date.now()),
         open: 0, high: 0, low: 0, close: 0, volume: 0
       });
-    }
-    } catch (err) {
-      console.warn("loadHistory error, falling back to single bar:", err);
-      bars.push({ time: bucket(Date.now()), open:0, high:0, low:0, close:0, volume:0 });
     }
   }
 
