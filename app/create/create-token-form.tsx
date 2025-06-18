@@ -226,8 +226,7 @@ export default function CreateTokenForm() {
 
     try {
       console.log("Getting account...");
-      const { address: account } = await publicClient.getAddresses();
-      if (!account) {
+      if (!address) {
         console.error("No account connected");
         addToast("No connected account");
         return;
@@ -235,8 +234,8 @@ export default function CreateTokenForm() {
 
       console.log("Estimating gas...");
       const estimated = await publicClient.estimateContractGas({
-        account,
-        ...sim.request,
+        account: address,  // Use the address from useAccount
+      ...sim.request,
       });
       console.log("Estimated gas:", estimated);
 
@@ -245,7 +244,7 @@ export default function CreateTokenForm() {
 
       console.log("Sending transaction...");
       await writeContract({
-        account,
+        account: address,
         ...sim.request,
         gas: gasLimit,
       });
