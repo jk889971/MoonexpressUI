@@ -13,14 +13,14 @@ type Bar = {
 };
 
 const MIN = 60_000;
-const WINDOW = 49_000n;
+const WINDOW = 1_000n;
 
 const bucket = (ms: number) => ms - (ms % MIN);
 
 const PRICE_EVT = parseAbiItem('event PriceUpdate(uint256 priceUsd,uint256 timestamp)');
 const MARKETCAP_EVT = parseAbiItem('event MarketCapUpdate(uint256 marketCapUsd, uint256 timestamp)');
 
-// Updated createFeed function with better error handling and rate limiting
+// Helper to create datafeeds
 function createFeed(
   launch: `0x${string}`,
   deployBlock: bigint,
@@ -36,108 +36,84 @@ function createFeed(
   const client = createPublicClient({
     chain: bscTestnet,
     transport: http(),
-    batch: {
-      multicall: true, // Enable multicall to batch requests
-    },
   });
 
   const isMarketcap = readFn === 'getLiveMarketCapUsd';
   const divisor = isMarketcap ? 1e26 : 1e8;
-  const MAX_RETRIES = 3;
-  const INITIAL_DELAY = 1000; // 1 second initial delay
-  const MAX_BLOCK_RANGE = 2000; // Smaller block range to avoid hitting limits
 
   const readValue = async () => {
-    try {
-      const value = await client.readContract({
-        address: launch,
-        abi: launchAbi,
-        functionName: readFn,
-      });
-      return Number(value) / divisor;
-    } catch (error) {
-      console.error('Error reading value:', error);
-      return 0;
-    }
+    const value = await client.readContract({
+      address: launch,
+      abi: launchAbi,
+      functionName: readFn,
+    });
+    return Number(value) / divisor;
   };
 
   const bars: Bar[] = [];
 
-  async function getLogsWithRetry(fromBlock: bigint, toBlock: bigint, retries = 0): Promise<any[]> {
-    try {
-      return await client.getLogs({ 
-        address: launch, 
-        event, 
-        fromBlock, 
-        toBlock 
-      });
-    } catch (error: any) {
-      if (error.message.includes('limit exceeded') && retries < MAX_RETRIES) {
-        const delay = INITIAL_DELAY * (retries + 1);
-        console.log(`Rate limited, retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return getLogsWithRetry(fromBlock, toBlock, retries + 1);
-      }
-      console.error('Failed to fetch logs:', error);
-      return [];
+  async function safeGetLogs(opts: {
+    address: `0x${string}`,
+    event: any,
+    fromBlock: bigint,
+    toBlock: bigint
+  }): Promise<any[]> {
+    const { fromBlock, toBlock, address, event } = opts;
+    // if already small enough, do one call
+    if (toBlock - fromBlock <= 500n) {
+      return client.getLogs({ address, event, fromBlock, toBlock });
     }
+    // otherwise split in half
+    const mid = fromBlock + (toBlock - fromBlock) / 2n;
+    const first  = await safeGetLogs({ address, event, fromBlock, toBlock: mid });
+    const second = await safeGetLogs({ address, event, fromBlock: mid + 1n, toBlock });
+    return [...first, ...second];
   }
 
   async function loadHistory() {
-    if (bars.length > 0) return;
+    if (bars.length) return;
 
     try {
-      const latest = await client.getBlockNumber();
-      let from = deployBlock;
-      
-      while (from <= latest) {
-        const to = from + BigInt(MAX_BLOCK_RANGE) > latest ? latest : from + BigInt(MAX_BLOCK_RANGE);
-        const logs = await getLogsWithRetry(from, to);
-        
-        for (const log of logs) {
-          const { priceUsd, marketCapUsd, timestamp } = log.args as any;
-          const args = log.args as any;
-          const rawValue = args.priceUsd !== undefined ? args.priceUsd : args.marketCapUsd;
-          const value = Number(rawValue) / (isMarketcap ? 1e26 : 1e8);
-          
-          const t = bucket(Number(timestamp) * 1000);
-          const last = bars[bars.length - 1];
+    const latest = await client.getBlockNumber();
+    for (let from = deployBlock; from <= latest; from += WINDOW) {
+      const to = from + WINDOW > latest ? latest : from + WINDOW;
+      const logs = await safeGetLogs({ address: launch, event, fromBlock: from, toBlock: to });
 
-          if (!last || t > last.time) {
-            bars.push({
-              time: t,
-              open: last?.close ?? value,
-              high: value,
-              low: value,
-              close: value,
-              volume: 0,
-            });
-          } else {
-            last.high = Math.max(last.high, value);
-            last.low = Math.min(last.low, value);
-            last.close = value;
-          }
+      for (const log of logs) {
+        const { priceUsd, marketCapUsd, timestamp } = log.args as any;
+        const args = log.args as any;
+        const rawValue = args.priceUsd !== undefined ? args.priceUsd : args.marketCapUsd;
+        const value = Number(rawValue) / (isMarketcap ? 1e26 : 1e8);
+        
+        const t = bucket(Number(timestamp) * 1000);
+        const last = bars[bars.length - 1];
+
+        if (!last || t > last.time) {
+          bars.push({
+            time: t,
+            open: last?.close ?? value,
+            high: value,
+            low: value,
+            close: value,
+            volume: 0,
+          });
+        } else {
+          last.high = Math.max(last.high, value);
+          last.low = Math.min(last.low, value);
+          last.close = value;
         }
-
-        from = to + 1n;
-        
-        // Small delay between batches to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 200));
       }
+    }
 
-      if (!bars.length) {
-        const currentValue = await readValue();
-        bars.push({
-          time: bucket(Date.now()),
-          open: currentValue,
-          high: currentValue,
-          low: currentValue,
-          close: currentValue,
-          volume: 0,
-        });
-      }
-    } catch (error) {
-      console.error('Error loading history:', error);
+    if (!bars.length) {
+      bars.push({
+        time: bucket(Date.now()),
+        open: 0, high: 0, low: 0, close: 0, volume: 0
+      });
+    }
+    } catch (err) {
+      console.warn("loadHistory error, falling back to single bar:", err);
+      bars.push({ time: bucket(Date.now()), open:0, high:0, low:0, close:0, volume:0 });
     }
   }
 
