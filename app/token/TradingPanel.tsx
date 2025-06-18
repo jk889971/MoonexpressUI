@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient } from "wagmi";
 import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json";
-import { parseEther, parseUnits, encodeFunctionData } from "viem";
+import { parseEther, parseUnits, encodeFunctionData, getContractError } from "viem";
 import { bscTestnet } from "@/lib/chain";
 
 interface TradingPanelProps {
