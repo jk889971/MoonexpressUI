@@ -215,33 +215,46 @@ export default function CreateTokenForm() {
 
   //── “Continue” CLICK: close buy‐modal, open success modal ─────────────────────
   const handleContinue = async () => {
-   setShowModal(false)
+    console.log("Starting transaction...");
+    setShowModal(false);
 
-   if (!sim?.request) {
-     addToast(simError?.message || "Simulation failed")
-     return
-   }
+    if (!sim?.request) {
+      console.error("No simulation request:", simError);
+      addToast(simError?.message || "Simulation failed");
+      return;
+    }
 
-   try {
-     // ➋ estimate exactly how much gas this call will need:
-     const estimated = await publicClient.estimateGas({
-       to: FACTORY_ADDRESS,
-       data: sim.request.data,
-       value:   sim.request.value,
-     })
+    try {
+      console.log("Getting account...");
+      const { address: account } = await publicClient.getAddresses();
+      if (!account) {
+        console.error("No account connected");
+        addToast("No connected account");
+        return;
+      }
 
-     // ➌ add a 20% safety buffer:
-     const gasLimit = estimated + (estimated / 5n)
+      console.log("Estimating gas...");
+      const estimated = await publicClient.estimateContractGas({
+        account,
+        ...sim.request,
+      });
+      console.log("Estimated gas:", estimated);
 
-     // ➍ invoke the writeContract with the manual gasLimit
-     await writeContract({
-       ...sim.request,
-       gasLimit,
-     })
-   } catch (e: any) {
-     addToast(e?.shortMessage || "Tx rejected")
-   }
- }
+      const gasLimit = estimated + (estimated / 5n);
+      console.log("Gas with buffer:", gasLimit);
+
+      console.log("Sending transaction...");
+      await writeContract({
+        account,
+        ...sim.request,
+        gas: gasLimit,
+      });
+      console.log("Transaction sent successfully");
+    } catch (e: any) {
+      console.error("Full error:", e);
+      addToast(e?.shortMessage || e?.message || "Transaction failed");
+    }
+  };
 
   /**************************************************************************
  *  Δ  PREPARE write()
