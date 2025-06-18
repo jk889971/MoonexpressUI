@@ -19,7 +19,7 @@ import {
   useBalance,
   usePublicClient,
 } from 'wagmi'
-import { parseEther, formatEther } from "viem"
+import { parseEther, formatEther, getContractError } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
 
@@ -234,24 +234,51 @@ export default function CreateTokenForm() {
 
       console.log("Estimating gas...");
       const estimated = await publicClient.estimateContractGas({
-        account: address,  // Use the address from useAccount
-      ...sim.request,
+        account: address,
+        ...sim.request,
       });
       console.log("Estimated gas:", estimated);
 
+      // Get current gas price
+      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+      console.log("Gas fees:", { maxFeePerGas, maxPriorityFeePerGas });
+
       const gasLimit = estimated + (estimated / 5n);
       console.log("Gas with buffer:", gasLimit);
+
+      // Calculate estimated gas cost
+      const balance = await publicClient.getBalance({ address });
+      const requiredValue = sim.request.value || 0n;
+      const estimatedGasCost = gasLimit * (maxFeePerGas || 0n);
+      console.log("Estimated gas cost:", formatEther(estimatedGasCost), "BNB");
+      
+      if (balance < requiredValue + estimatedGasCost) {
+        const shortfall = formatEther(requiredValue + estimatedGasCost - balance);
+        addToast(`Insufficient funds. Need ${shortfall} more BNB`);
+        return;
+      }
 
       console.log("Sending transaction...");
       await writeContract({
         account: address,
         ...sim.request,
         gas: gasLimit,
+        maxFeePerGas,       // Add explicit gas fees
+        maxPriorityFeePerGas,
       });
       console.log("Transaction sent successfully");
     } catch (e: any) {
       console.error("Full error:", e);
-      addToast(e?.shortMessage || e?.message || "Transaction failed");
+      const contractError = getContractError(e);
+      if (contractError) {
+        addToast(`Contract error: ${contractError.shortMessage}`);
+      } else if (e?.walk?.toString().includes("insufficient funds")) {
+        addToast("Insufficient funds for transaction");
+      } else if (e?.details) {
+        addToast(e.details);
+      } else {
+        addToast(e?.shortMessage || e?.message || "Transaction failed");
+      }
     }
   };
 
