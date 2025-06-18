@@ -277,7 +277,11 @@ export default function MoonexpressTradingInterface({
                   textareaRef={textareaRef}
                 />
               ) : (
-                <TradesTable />
+                <TradesTable
+                  launchAddress={launchAddress}
+                  symbol={symbol}
+                  deployBlock={deployBlock}
+                />
               )}
             </CardContent>
           </Card>
@@ -343,7 +347,12 @@ export default function MoonexpressTradingInterface({
                 />
               )}
 
-              {mobileTab === "trades" && <TradesTable />}
+              {mobileTab === "trades" && <TradesTable
+                                          launchAddress={launchAddress}
+                                          symbol={symbol}
+                                          deployBlock={deployBlock}
+                                        />
+              }
             </CardContent>
           </Card>
 
