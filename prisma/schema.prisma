@@ -19,12 +19,25 @@ model Launch {
   websiteUrl    String?  @db.VarChar(255)
   createdAt     DateTime @default(now())
   comments      Comment[]
+  trades        Trade[]
 }
 
 model Profile {
   wallet       String   @id @db.VarChar(42)
   avatarIndex  Int
   comments     Comment[]
+}
+
+model Trade {
+  id            Int      @id @default(autoincrement())
+  launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
+  launchAddress String   @db.VarChar(42)
+  wallet        String   @db.VarChar(42)
+  type          String   // "Buy" or "Sell"
+  bnbAmount     Decimal  @db.Decimal(24, 18)
+  tokenAmount   Decimal  @db.Decimal(32, 0)
+  txHash        String   @db.VarChar(66)
+  createdAt     DateTime @default(now())
 }
 
 model Comment {

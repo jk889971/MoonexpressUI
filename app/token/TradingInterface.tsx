@@ -245,7 +245,7 @@ export default function MoonexpressTradingInterface({
                     }`}
                     onClick={() => setActiveTab("comments")}
                   >
-                    Discussion (0)
+                    Discussion
                   </button>
                   <button
                     className={`font-medium pb-2 transition-colors ${
@@ -277,11 +277,7 @@ export default function MoonexpressTradingInterface({
                   textareaRef={textareaRef}
                 />
               ) : (
-                <TradesTable
-                  launchAddress={launchAddress}
-                  symbol={symbol}
-                  deployBlock={deployBlock}
-                />
+                <TradesTable launchAddress={launchAddress} symbol={symbol} />
               )}
             </CardContent>
           </Card>
@@ -347,12 +343,7 @@ export default function MoonexpressTradingInterface({
                 />
               )}
 
-              {mobileTab === "trades" && <TradesTable
-                                          launchAddress={launchAddress}
-                                          symbol={symbol}
-                                          deployBlock={deployBlock}
-                                        />
-              }
+              {mobileTab === "trades" && <TradesTable launchAddress={launchAddress} symbol={symbol} />}
             </CardContent>
           </Card>
 

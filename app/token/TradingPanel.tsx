@@ -128,6 +128,14 @@ export default function TradingPanel({
   async function handleBuy() {
     if (!isValidPositiveNumber(amount)) return;
 
+    // ─── inline buyer‐delta logic ───
+    const before = await publicClient.readContract({
+      address: launchAddress,
+      abi: launchAbi,
+      functionName: "buyers",
+      args: [wallet!],
+    }) as readonly [bigint, bigint, boolean];
+
     const value = parseEther(amount);             // BNB → wei
     // 1️⃣ encode the buy() call
     const data = encodeFunctionData({
@@ -161,6 +169,31 @@ export default function TradingPanel({
 
     // wait for 1 confirmation…
     await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+
+    // re‐read AFTER
+    const after = await publicClient.readContract({
+      address: launchAddress,
+      abi: launchAbi,
+      functionName: "buyers",
+      args: [wallet!],
+    }) as readonly [bigint, bigint, boolean];
+
+    const tokensBought    = Number(after[1] - before[1]) / 1e18;
+    const bnbActuallyPaid = Number(after[0] - before[0]) / 1e18;
+
+    // ─── POST to your DB ───
+    await fetch(`/api/trades/${launchAddress}`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({
+        wallet,
+        type:        "Buy",
+        bnbAmount:   bnbActuallyPaid.toFixed(6),
+        tokenAmount: tokensBought.toString(),
+        txHash:      hash,
+      }),
+    });
+
     await refetchBal();
   }
 
@@ -168,6 +201,13 @@ export default function TradingPanel({
     if (!canSellNow || !amount || !wallet) return;
 
     try {
+      // ─── inline buyer‐delta logic ───
+      const before = await publicClient.readContract({
+        address: launchAddress,
+        abi: launchAbi,
+        functionName: "buyers",
+        args: [wallet!],
+      }) as readonly [bigint, bigint, boolean];
       // 1. Convert and validate amount
       const sellAmount = Math.floor(Number(amount));
       if (sellAmount <= 0 || isNaN(sellAmount)) {
@@ -237,7 +277,31 @@ export default function TradingPanel({
       setSelectedPercentage("");
 
       // Wait for confirmation
-      await publicClient.waitForTransactionReceipt({ hash });
+      await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+
+      // re‐read AFTER
+      const after = await publicClient.readContract({
+        address: launchAddress,
+        abi: launchAbi,
+        functionName: "buyers",
+        args: [wallet!],
+      }) as readonly [bigint, bigint, boolean];
+
+      const bnbReceived = (Number(before[0]) - Number(after[0])) / 1e18;
+      const tokensSold  = Number(amount);
+
+      await fetch(`/api/trades/${launchAddress}`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          wallet,
+          type:        "Sell",
+          bnbAmount:   bnbReceived.toFixed(6),
+          tokenAmount: tokensSold.toString(),
+          txHash:      hash,
+        }),
+      });
+
       await refetchBal();
       await refetchBuyer();
 
