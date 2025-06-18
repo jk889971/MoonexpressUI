@@ -58,16 +58,25 @@ function createFeed(
     fromBlock: bigint,
     toBlock: bigint
   }): Promise<any[]> {
-    const { fromBlock, toBlock, address, event } = opts;
-    // if already small enough, do one call
-    if (toBlock - fromBlock <= 500n) {
-      return client.getLogs({ address, event, fromBlock, toBlock });
+    const { address, event, fromBlock, toBlock } = opts;
+
+    // base-case: nothing left
+    if (toBlock < fromBlock) return [];
+
+    try {
+      // optimistic single call
+      return await client.getLogs({ address, event, fromBlock, toBlock });
+    } catch (err: any) {
+      // only split if we actually hit the RPC hard limit
+      if (err?.message?.includes('limit exceeded') && toBlock !== fromBlock) {
+        const mid = fromBlock + (toBlock - fromBlock) / 2n;
+        const first  = await safeGetLogs({ address, event, fromBlock, toBlock: mid });
+        const second = await safeGetLogs({ address, event, fromBlock: mid + 1n, toBlock });
+        return [...first, ...second];
+      }
+      // re-throw any other error
+      throw err;
     }
-    // otherwise split in half
-    const mid = fromBlock + (toBlock - fromBlock) / 2n;
-    const first  = await safeGetLogs({ address, event, fromBlock, toBlock: mid });
-    const second = await safeGetLogs({ address, event, fromBlock: mid + 1n, toBlock });
-    return [...first, ...second];
   }
 
   async function loadHistory() {
