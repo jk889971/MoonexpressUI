@@ -165,40 +165,82 @@ export default function TradingPanel({
   }
 
   async function handleSell() {
-    if (!canSellNow || !isValidPositiveNumber(amount)) return;
+    if (!canSellNow || !amount) return;
 
-    const tokenAmt = parseUnits(amount, 18);      // tokens → wei
-    // 1️⃣ encode the sellTokens(uint256) call
-    const data = encodeFunctionData({
-      abi: launchAbi,
-      functionName: "sellTokens",
-      args: [tokenAmt],
-    });
+    // Convert to whole tokens (remove decimals)
+    const wholeTokens = Math.floor(Number(amount));
+    
+    // Validate token amount
+    if (wholeTokens <= 0 || wholeTokens > allocated) {
+      console.error("Invalid token amount");
+      return;
+    }
 
-    // 2️⃣ estimate gas on-chain
-    const estimated = await publicClient.estimateGas({
-      to: launchAddress,
-      data,
-    });
+    // Convert to contract units (wei)
+    const tokenAmt = parseUnits(wholeTokens.toString(), 18);
 
-    // 3️⃣ add a 20% buffer
-    const gasLimit = estimated + estimated / 5n;
+    try {
+      // 1️⃣ Verify contract conditions
+      const canSell = await publicClient.readContract({
+        address: launchAddress,
+        abi: launchAbi,
+        functionName: "canSell",
+        args: [tokenAmt],
+      });
+      
+      if (!canSell) {
+        console.error("Selling not allowed at this time");
+        return;
+      }
 
-    // 4️⃣ send the tx with your manual gasLimit
-    const hash = await writeContractAsync({
-      address: launchAddress,
-      abi: launchAbi,
-      functionName: "sellTokens",
-      args: [tokenAmt],
-      chainId: bscTestnet.id,
-      gasLimit,
-    });
+      // 2️⃣ Encode the transaction
+      const data = encodeFunctionData({
+        abi: launchAbi,
+        functionName: "sellTokens",
+        args: [tokenAmt],
+      });
 
-    setAmount("");
-    setSelectedPercentage("");
+      // 3️⃣ Estimate gas
+      const estimated = await publicClient.estimateGas({
+        to: launchAddress,
+        data,
+      });
 
-    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
-    await refetchBal();
+      // 4️⃣ Add buffer and send transaction
+      const gasLimit = estimated + estimated / 5n;
+      
+      const hash = await writeContractAsync({
+        address: launchAddress,
+        abi: launchAbi,
+        functionName: "sellTokens",
+        args: [tokenAmt],
+        chainId: bscTestnet.id,
+        gasLimit,
+      });
+
+      // Reset UI state
+      setAmount("");
+      setSelectedPercentage("");
+
+      // Wait for confirmation
+      await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+      await refetchBal();
+    } catch (e: any) {
+      const contractError = getContractError(e, {
+        abi: launchAbi,
+        functionName: 'sellTokens'
+      });
+      
+      if (contractError) {
+        console.error("Contract error:", contractError.shortMessage);
+        // Handle specific errors
+        if (contractError.data?.errorName === 'InvalidAmount') {
+          console.error("Amount must be whole number and within allocated tokens");
+        }
+      } else {
+        console.error("Transaction error:", e.shortMessage || e.message);
+      }
+    }
   }
 
   useEffect(() => {

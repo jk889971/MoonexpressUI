@@ -12,16 +12,16 @@ export const bscTestnet = defineChain({
   rpcUrls: {
     default: {
       http: [
-        'https://data-seed-prebsc-1-s1.bnbchain.org:8545',
         'https://bsc-testnet.public.blastapi.io',
+        'https://data-seed-prebsc-1-s1.bnbchain.org:8545',
         'https://bsc-testnet.drpc.org',
         'https://bsc-testnet-rpc.publicnode.com'
       ],
     },
     public: {
       http: [
-        'https://data-seed-prebsc-1-s1.bnbchain.org:8545',
         'https://bsc-testnet.rpc.thirdweb.com',
+        'https://data-seed-prebsc-1-s1.bnbchain.org:8545',
         'https://bsc-testnet-dataseed.bnbchain.org',
         'https://bsc-testnet.bnbchain.org',
         'https://bsc-prebsc-dataseed.bnbchain.org',
