@@ -1,3 +1,4 @@
+// components/TokenChart.tsx
 'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
