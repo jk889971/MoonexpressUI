@@ -61,11 +61,13 @@ export async function POST(req: NextRequest) {
           functionName: 'getLiveMarketCapUsd',
         })
         
-        // Fetch comment count from Supabase
-        const { count: repliesCount } = await supabase
+        // Count ALL comments (including replies) for this launch
+        const { count: totalComments } = await supabase
           .from('Comment')
           .select('*', { count: 'exact', head: true })
           .eq('launchAddress', launchAddress);
+          
+        const totalCount = totalComments || 0;
         
         results.push({
           launchAddress,
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
           drainMode,
           marketCapUSD: Number(marketCapUSD) / 1e26, // Convert to USD
           progress,
-          repliesCount: repliesCount || 0
+          repliesCount: totalCount,
         })
       } catch (e) {
         console.error(`Error processing ${launchAddress}:`, e)

@@ -59,18 +59,6 @@ function CountdownTimer({ endTime }: { endTime: number }) {
   return <div className="text-xs text-[#19c0f4] font-mono">{formatTime(timeLeft)}</div>
 }
 
-// Status dot component
-function StatusDot({ status }: { status: string }) {
-  let dotColor = "bg-gray-400"; // Default
-  if (status === "Live") dotColor = "bg-green-500";
-  if (status === "Refunded" || status === "Failed") dotColor = "bg-red-500";
-  if (status === "Migrated") dotColor = "bg-blue-500";
-  
-  return (
-    <span className={`h-2 w-2 rounded-full ${dotColor} mr-1`}></span>
-  );
-}
-
 // Helper to get token status
 function getTokenStatus(
   refundable: boolean,
@@ -300,7 +288,7 @@ export default function Component() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#000025] text-white relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#000025] text-white relative overflow-y-auto">
       <canvas
         ref={starfieldRef}
         className="fixed inset-0 z-0 w-screen h-screen pointer-events-none select-none"
@@ -484,6 +472,21 @@ export default function Component() {
                 </div>
               ) : (
                 currentLaunches.map((launch: any) => {
+                  
+                  let dotColor = "bg-green-400"   // default for Live
+                  let dotGlow  = "shadow-[0_0_6px_2px_rgba(34,197,94,.8)]"
+
+                  if (launch.status === "Refunded") {
+                    dotColor = "bg-green-800"
+                    dotGlow  = ""
+                  } else if (launch.status === "Failed") {
+                    dotColor = "bg-red-500"
+                    dotGlow  = ""
+                  } else if (launch.status === "Refunded") {
+                    dotColor = "bg-yellow-400"
+                    dotGlow  = ""
+                  }
+
                   // Convert IPFS URI to HTTP
                   const imageSrc = launch.imageURI?.startsWith("ipfs://") 
                     ? `https://ipfs.io/ipfs/${launch.imageURI.slice(7)}`
@@ -515,7 +518,9 @@ export default function Component() {
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex items-center">
-                                <StatusDot status={launch.status} />
+                                <span
+                                  className={`flex-shrink-0 h-2.5 w-2.5 rounded-full ${dotColor} ${dotGlow}`}
+                                />
                                 <h3 className="font-semibold text-white text-center max-[400px]:mt-0">
                                   {launch.name} (${launch.symbol})
                                 </h3>
