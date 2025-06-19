@@ -106,8 +106,9 @@ export default function Component() {
   const starfieldRef = useRef<HTMLCanvasElement | null>(null);
   
   // Fix 1: Handle loading states
-  const { data: staticLaunches = [], isLoading: staticLoading } = useSWR('/api/launches', fetcher);
-  const launchAddresses = staticLaunches.map((l: any) => l.launchAddress);
+  const { data: staticLaunches, isLoading: staticLoading } = useSWR('/api/launches', fetcher);
+  const staticLaunchesArray = Array.isArray(staticLaunches) ? staticLaunches : [];
+  const launchAddresses = staticLaunchesArray.map((l: any) => l.launchAddress);
 
   // Fix 2: Add error handling to dynamic fetch
   const { 
@@ -135,7 +136,7 @@ export default function Component() {
   }, [staticLaunches, dynamicData, dynamicError]);
 
   // Fix 5: Add safe access to dynamic properties
-  const launches = staticLaunches.map((staticLaunch: any) => {
+  const launches = staticLaunchesArray.map((staticLaunch: any) => {
     const dynamic = dynamicData.find(
       (d: any) => d.launchAddress === staticLaunch.launchAddress
     ) || {};
@@ -479,13 +480,7 @@ export default function Component() {
                 ))
               ) : currentLaunches.length === 0 ? (
                 <div className="text-center py-12 col-span-3">
-                  <p className="text-white/70">No tokens found. Create the first one!</p>
-                  <Button 
-                    className="mt-4 bg-[#19c0f4] hover:bg-[#19c0f4]/90"
-                    onClick={() => router.push("/create")}
-                  >
-                    Create Token
-                  </Button>
+                  <p className="text-white/70">No tokens found!</p>
                 </div>
               ) : (
                 currentLaunches.map((launch: any) => {
