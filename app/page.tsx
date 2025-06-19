@@ -172,11 +172,18 @@ export default function Component() {
   const totalPages = Math.ceil(filteredLaunches.length / cardsPerPage);
 
   useEffect(() => {
+  if (filteredLaunches.length > 0) {
     const newTotal = Math.ceil(filteredLaunches.length / cardsPerPage);
-    if (currentPage > newTotal) {
-      setCurrentPage(newTotal);
-    }
-  }, [cardsPerPage, filteredLaunches.length]);
+    setCurrentPage(prev => {
+      // Reset to page 1 if no items would be shown
+      if (prev < 1) return 1;
+      // Adjust if current page exceeds new total
+      return prev > newTotal ? newTotal : prev;
+    });
+  } else {
+    setCurrentPage(1);
+  }
+}, [cardsPerPage, filteredLaunches.length]);
 
   useEffect(() => {
     function updateCardsPerPage() {
@@ -499,7 +506,7 @@ export default function Component() {
                       key={launch.tokenAddress} 
                       className="cursor-pointer" 
                       onClick={() => router.push(
-                        `/token/${launch.tokenAddress}?b=${launch.createdAt}&s=${launch.symbol}`
+                        `/token/${launch.tokenAddress}?b=${launch.deployBlock}&s=${launch.symbol}`
                       )}
                     >
                       <Card className="bg-[#21325e]/30 border-[#21325e] backdrop-blur-sm hover:bg-[#21325e]/50 transition-colors duration-300 rounded-2xl overflow-hidden">
@@ -526,7 +533,7 @@ export default function Component() {
                               <div>
                                 <div className="text-xs text-white/60 mb-1">Market cap</div>
                                 <div className="font-semibold text-white">
-                                  ${((launch.marketCapUSD || 0) / 1e26).toLocaleString(undefined, {
+                                  ${(launch.marketCapUSD || 0 ).toLocaleString(undefined, {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2
                                   })}

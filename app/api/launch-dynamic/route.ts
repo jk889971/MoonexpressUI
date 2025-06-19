@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
         // Fetch comment count from Supabase
         const { count: repliesCount } = await supabase
           .from('Comment')
-          .select('*', { count: 'exact' })
-          .eq('launchAddress', launchAddress)
+          .select('*', { count: 'exact', head: true })
+          .eq('launchAddress', launchAddress);
         
         results.push({
           launchAddress,
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
           finalized,
           lpFailed,
           drainMode,
-          marketCapUSD: Number(marketCapUSD) / 1e8, // Convert to USD
+          marketCapUSD: Number(marketCapUSD) / 1e26, // Convert to USD
           progress,
           repliesCount: repliesCount || 0
         })

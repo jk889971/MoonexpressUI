@@ -48,6 +48,14 @@ export async function GET() {
         createdAt: Number(launchInfo[5])
       })
     }
+
+    // Add deploy block to each launch
+    for (const launch of launches) {
+      const receipt = await publicClient.getTransactionReceipt({
+        hash: launch.txHash as `0x${string}`
+      });
+      launch.deployBlock = Number(receipt.blockNumber);
+    }
     
     // Get Supabase data for each launch
     const launchAddresses = launches.map(l => l.launchAddress)
