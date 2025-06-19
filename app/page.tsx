@@ -14,20 +14,31 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Search, Globe } from "lucide-react"
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
 
-// (Helper timer, unchanged)
-function CountdownTimer({ initialTime }: { initialTime: number }) {
-  const [timeLeft, setTimeLeft] = useState(initialTime)
+// Countdown timer component
+function CountdownTimer({ endTime }: { endTime: number }) {
+  const [timeLeft, setTimeLeft] = useState(0)
 
   useEffect(() => {
-    if (timeLeft <= 0) return
+    if (endTime <= 0) return
+    
+    const calculateTimeLeft = () => {
+      const now = Math.floor(Date.now() / 1000);
+      return Math.max(0, endTime - now);
+    }
 
+    setTimeLeft(calculateTimeLeft())
+    
     const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1)
+      const newTimeLeft = calculateTimeLeft()
+      setTimeLeft(newTimeLeft)
+      if (newTimeLeft <= 0) clearInterval(timer)
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft])
+  }, [endTime])
 
   const formatTime = (seconds: number) => {
     const days = Math.floor(seconds / 86400)
@@ -42,63 +53,135 @@ function CountdownTimer({ initialTime }: { initialTime: number }) {
   }
 
   if (timeLeft <= 0) {
-    return <div className="text-xs text-red-400">Expired</div>
+    return <div className="text-xs text-red-400">Ended</div>
   }
 
   return <div className="text-xs text-[#19c0f4] font-mono">{formatTime(timeLeft)}</div>
 }
 
-export default function Component() {
-  const allMemecoins = Array.from({ length: 45 }).map((_, i) => ({
-    name: "Flappy Bird",
-    symbol: "$FBD",
-    creator: "Devmoa",
-    marketCap: "4100.84",
-    replies: "07",
-    createdOn: "14-03-2024",
-    avatar: "/placeholder.svg?height=40&width=40",
-  }));
+// Status dot component
+function StatusDot({ status }: { status: string }) {
+  let dotColor = "bg-gray-400"; // Default
+  if (status === "Live") dotColor = "bg-green-500";
+  if (status === "Refunded" || status === "Failed") dotColor = "bg-red-500";
+  if (status === "Migrated") dotColor = "bg-blue-500";
+  
+  return (
+    <span className={`h-2 w-2 rounded-full ${dotColor} mr-1`}></span>
+  );
+}
 
+// Helper to get token status
+function getTokenStatus(
+  refundable: boolean,
+  finalized: boolean,
+  endTime: number,
+  lpFailed: boolean,
+  drainMode: boolean
+) {
+  const now = Math.floor(Date.now() / 1000);
+  
+  if (refundable) {
+    if (!finalized) {
+      return now < endTime ? "Live" : "Refunded";
+    } else {
+      return lpFailed ? "Failed" : "Migrated";
+    }
+  } else {
+    if (drainMode) {
+      return "Failed";
+    } else if (!finalized) {
+      return "Live";
+    } else {
+      return lpFailed ? "Failed" : "Migrated";
+    }
+  }
+}
+
+export default function Component() {
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [cardsPerPage, setCardsPerPage] = useState<number>(15);
+  const [searchQuery, setSearchQuery] = useState("");
+  const starfieldRef = useRef<HTMLCanvasElement | null>(null);
+  
+  // Fix 1: Handle loading states
+  const { data: staticLaunches = [], isLoading: staticLoading } = useSWR('/api/launches', fetcher);
+  const launchAddresses = staticLaunches.map((l: any) => l.launchAddress);
 
-  const [searchQuery, setSearchQuery] = useState("")
+  // Fix 2: Add error handling to dynamic fetch
+  const { 
+    data: dynamicData = [], 
+    isLoading: dynamicLoading,
+    error: dynamicError 
+  } = useSWR(
+    launchAddresses.length > 0 ? ['/api/launch-dynamic', launchAddresses] : null,
+    ([url, addresses]) => fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ launchAddresses: addresses })
+    }).then(res => {
+      if (!res.ok) throw new Error('Dynamic data failed');
+      return res.json();
+    }),
+    { refreshInterval: 5000 }
+  );
+  
+  // Fix 3: Add debug logs
+  useEffect(() => {
+    console.log('Static launches:', staticLaunches);
+    console.log('Dynamic data:', dynamicData);
+    if (dynamicError) console.error('Dynamic data error:', dynamicError);
+  }, [staticLaunches, dynamicData, dynamicError]);
 
-  const indexOfLast = currentPage * cardsPerPage;
-  const indexOfFirst = indexOfLast - cardsPerPage;
-  const currentCoins = allMemecoins.slice(indexOfFirst, indexOfLast);
-
-  const filtered = currentCoins.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // Fix 5: Add safe access to dynamic properties
+  const launches = staticLaunches.map((staticLaunch: any) => {
+    const dynamic = dynamicData.find(
+      (d: any) => d.launchAddress === staticLaunch.launchAddress
+    ) || {};
+    
+    return {
+      ...staticLaunch,
+      ...dynamic,
+      // Safely handle potentially undefined values
+      status: getTokenStatus(
+        dynamic.isRefundable || false,
+        dynamic.finalized || false,
+        dynamic.endTime || 0,
+        dynamic.lpFailed || false,
+        dynamic.drainMode || false
+      )
+    };
+  });
+  
+  // Filter launches based on search query
+  const filteredLaunches = launches.filter((launch: any) =>
+    launch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    launch.symbol.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPages = Math.ceil(allMemecoins.length / cardsPerPage);
-
-  const router = useRouter();
-
-  const starfieldRef = useRef<HTMLCanvasElement | null>(null);
+  // Pagination
+  const indexOfLast = currentPage * cardsPerPage;
+  const indexOfFirst = indexOfLast - cardsPerPage;
+  const currentLaunches = filteredLaunches.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(filteredLaunches.length / cardsPerPage);
 
   useEffect(() => {
-    const newTotal = Math.ceil(allMemecoins.length / cardsPerPage);
+    const newTotal = Math.ceil(filteredLaunches.length / cardsPerPage);
     if (currentPage > newTotal) {
       setCurrentPage(newTotal);
     }
-  }, [cardsPerPage]);
+  }, [cardsPerPage, filteredLaunches.length]);
 
   useEffect(() => {
     function updateCardsPerPage() {
       const w = window.innerWidth;
       let columns = 1;
 
-      if (w >= 1024) {
-        columns = 3;   // lg:grid-cols-3
-      } else if (w >= 768) {
-        columns = 2;   // md:grid-cols-2
-      } else {
-        columns = 1;   // grid-cols-1
-      }
+      if (w >= 1024) columns = 3;
+      else if (w >= 768) columns = 2;
+      else columns = 1;
 
-      // if exactly 2 cards/row, show 14 per page; else show 15
       setCardsPerPage(columns === 2 ? 14 : 15);
     }
 
@@ -163,53 +246,62 @@ export default function Component() {
     let active = true
 
     const spawn = () => {
-  if (!active) return
-
-  const margin = 80                              // stars start off-screen
-  const startX = -margin + Math.random() * (canvas.width * 0.25)  // –80 → 25 % width
-  const startY = -margin + Math.random() * (canvas.height * 0.25) // –80 → 25 % height
-
-  const len    = 350 + Math.random() * 550       // 350 – 900 px
-  const endX   = startX + len                    // ↘ 45°
-  const endY   = startY + len
-
-  const SPEED  = 1200                            // pixels per second
-  const duration = (len / SPEED) * 1000          // ms
-  const born = performance.now()
-
-  const draw = (now: number) => {
       if (!active) return
-      const t = (now - born) / duration            // 0 → 1 over ‘duration’
-      if (t > 1) return
-      ctx.save()
-      ctx.globalAlpha = 1 - t
-      ctx.strokeStyle = '#fff'
-      ctx.lineWidth   = 2
-      ctx.beginPath()
-      ctx.moveTo(startX, startY)
-      ctx.lineTo(startX + len * t, startY + len * t)
-      ctx.stroke()
-      ctx.restore()
+
+      const margin = 80                              // stars start off-screen
+      const startX = -margin + Math.random() * (canvas.width * 0.25)  // –80 → 25 % width
+      const startY = -margin + Math.random() * (canvas.height * 0.25) // –80 → 25 % height
+
+      const len    = 350 + Math.random() * 550       // 350 – 900 px
+      const endX   = startX + len                    // ↘ 45°
+      const endY   = startY + len
+
+      const SPEED  = 1200                            // pixels per second
+      const duration = (len / SPEED) * 1000          // ms
+      const born = performance.now()
+
+      const draw = (now: number) => {
+        if (!active) return
+        const t = (now - born) / duration            // 0 → 1 over ‘duration’
+        if (t > 1) return
+        ctx.save()
+        ctx.globalAlpha = 1 - t
+        ctx.strokeStyle = '#fff'
+        ctx.lineWidth   = 2
+        ctx.beginPath()
+        ctx.moveTo(startX, startY)
+        ctx.lineTo(startX + len * t, startY + len * t)
+        ctx.stroke()
+        ctx.restore()
+        requestAnimationFrame(draw)
+      }
+
       requestAnimationFrame(draw)
+
+      /* schedule the next star in 2–4 s  */
+      setTimeout(spawn, 2000 + Math.random() * 2000)
     }
-
-    requestAnimationFrame(draw)
-
-    /* schedule the next star in 2–4 s  */
-    setTimeout(spawn, 2000 + Math.random() * 2000)
-  }
 
     spawn()
     return () => { active = false }
   }, [])
 
+  //Handle loading states in UI
+  if (staticLoading || dynamicLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#19c0f4]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#000025] text-white relative overflow-x-hidden">
       <canvas
         ref={starfieldRef}
-        className="fixed inset-0  z-0  w-screen h-screen pointer-events-none select-none"
+        className="fixed inset-0 z-0 w-screen h-screen pointer-events-none select-none"
       />
+      
       {/** ─────────── HERO SECTION ─────────── **/}
       <section className="relative z-10 text-center py-16 px-6 overflow-hidden">
         <div className="max-w-6xl mx-auto relative z-10">
@@ -321,172 +413,244 @@ export default function Component() {
         </div>
       </section>
 
-      {/** ─────────── BODY SECTION (everything else) ─────────── **/}
+      {/** ─────────── BODY SECTION ─────────── **/}
       <div className="relative z-0">
-      <section className="relative z-10 px-6 pb-16 pt-4">
-        <div className="max-w-7xl mx-auto bg-[#0B152F] p-8 rounded-3xl">
-          <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 max-[400px]:items-center">
-            <div className="flex items-center space-x-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-1 max-[400px]:space-x-0">
-              <span className="text-3xl font-bold">3570</span>
-              <span className="text-xl text-white/60 max-[400px]:text-center">Coins Created</span>
+        <section className="relative z-10 px-6 pb-16 pt-4">
+          <div className="max-w-7xl mx-auto bg-[#0B152F] p-8 rounded-3xl">
+            <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 max-[400px]:items-center">
+              <div className="flex items-center space-x-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-1 max-[400px]:space-x-0">
+                <span className="text-3xl font-bold">{launches.length}</span>
+                <span className="text-xl text-white/60 max-[400px]:text-center">Coins Created</span>
+              </div>
+
+              <div className="flex items-center space-x-4 w-full md:w-auto max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
+                {/** ─── Search field ─── **/}
+                <div className="relative w-full md:w-80">
+                  <Input
+                    placeholder="Search for Coins"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-[#21325e]/50 border-[#21325e] text-white placeholder:text-white/50 pr-12 w-full"
+                  />
+                  <Button className="absolute right-0 top-0 bottom-0 bg-[#19c0f4] hover:bg-[#16abd9] text-white rounded-l-none hover:brightness-110 transition-all duration-300">
+                    <Search className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {/** ─── Sort dropdown ─── **/}
+                <Select>
+                  <SelectTrigger className="bg-[#21325e]/50 border-[#21325e] text-white w-full md:w-32">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white">
+                    <SelectItem
+                      value="newest"
+                      className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                    >
+                      Newest
+                    </SelectItem>
+                    <SelectItem
+                      value="oldest"
+                      className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                    >
+                      Oldest
+                    </SelectItem>
+                    <SelectItem
+                      value="market-cap"
+                      className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                    >
+                      Market Cap
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className=" flex items-center space-x-4 w-full md:w-auto max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
-              {/** ─── Search field ─── **/}
-              <div className="relative w-full md:w-80">
-                <Input
-                  placeholder="Search for Coins"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-[#21325e]/50 border-[#21325e] text-white placeholder:text-white/50 pr-12 w-full"
-                />
-                <Button className="absolute right-0 top-0 bottom-0 bg-[#19c0f4] hover:bg-[#16abd9] text-white rounded-l-none hover:brightness-110 transition-all duration-300">
-                  <Search className="w-4 h-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {currentLaunches.map((launch: any) => {
+                // Convert IPFS URI to HTTP
+                const imageSrc = launch.imageURI?.startsWith("ipfs://") 
+                  ? `https://ipfs.io/ipfs/${launch.imageURI.slice(7)}`
+                  : launch.imageURI || "/placeholder.svg";
+                
+                // Determine status label
+                const statusLabel = 
+                  launch.status === "Live" ? "Sale ends in" : 
+                  launch.status === "Refunded" ? "Refunds available" : 
+                  launch.status === "Migrated" ? "Claim tokens" : 
+                  "Status";
+                
+                return (
+                  <div 
+                    key={launch.tokenAddress} 
+                    className="cursor-pointer" 
+                    onClick={() => router.push(`/token/${launch.tokenAddress}`)}
+                  >
+                    <Card className="bg-[#21325e]/30 border-[#21325e] backdrop-blur-sm hover:bg-[#21325e]/50 transition-colors duration-300 rounded-2xl overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="flex items-center p-6 mb-0 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
+                          <div className="flex items-center space-x-3 max-[400px]:flex-col max-[400px]:space-y-2 max-[400px]:space-x-0">
+                            <Avatar className="w-12 h-12">
+                              <AvatarImage src={imageSrc} alt={launch.name} />
+                              <AvatarFallback className="bg-[#ffbb69] text-[#000025]">
+                                {launch.symbol.slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex items-center">
+                              <StatusDot status={launch.status} />
+                              <h3 className="font-semibold text-white text-center max-[400px]:mt-0">
+                                {launch.name} (${launch.symbol})
+                              </h3>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#21325e]/50 p-4 mx-4 rounded-xl">
+                          <div className="grid grid-cols-2 gap-4 text-center max-[400px]:grid-cols-1 max-[400px]:gap-y-2">
+                            <div>
+                              <div className="text-xs text-white/60 mb-1">Market cap</div>
+                              <div className="font-semibold text-white">
+                                ${(launch.marketCapUSD || 0).toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
+                                })}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-white/60 mb-1">Replies</div>
+                              <div className="font-semibold text-white">{launch.repliesCount || 0}</div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Tags */}
+                        <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1">
+                          {launch.isRefundable ? (
+                            <span className="bg-[#19c0f4]/20 text-[#19c0f4] text-xs px-2 py-1 rounded">
+                              Refundable
+                            </span>
+                          ) : (
+                            <span className="bg-red-500/20 text-red-500 text-xs px-2 py-1 rounded">
+                              Non-refundable
+                            </span>
+                          )}
+                          {launch.claimLP ? (
+                            <span className="bg-purple-500/20 text-purple-500 text-xs px-2 py-1 rounded">
+                              LPs
+                            </span>
+                          ) : (
+                            <span className="bg-green-500/20 text-green-500 text-xs px-2 py-1 rounded">
+                              Tokens
+                            </span>
+                          )}
+                          {launch.creatorPreBuys && (
+                            <span className="bg-yellow-500/20 text-yellow-500 text-xs px-2 py-1 rounded">
+                              Creator bought
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="px-4 pt-2 pb-4">
+                          <div className="text-sm text-white/70 mb-1 text-left max-[400px]:text-center">
+                            Bonding Curve
+                          </div>
+                          <div className="relative w-full h-2 bg-[#0e1a38] rounded-full overflow-hidden">
+                            <div 
+                              className="absolute top-0 left-0 h-full animate-pulse-bar bg-[#19c0f4]" 
+                              style={{ width: `${launch.progress || 0}%` }} 
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between p-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
+                          <div className="flex space-x-2 max-[400px]:justify-center max-[400px]:space-x-2">
+                            {launch.websiteUrl && (
+                              <a 
+                                href={launch.websiteUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300"
+                              >
+                                <Globe className="w-4 h-4" />
+                              </a>
+                            )}
+                            {launch.telegramUrl && (
+                              <a 
+                                href={launch.telegramUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300"
+                              >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                                </svg>
+                              </a>
+                            )}
+                            {launch.twitterUrl && (
+                              <a 
+                                href={launch.twitterUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300"
+                              >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                </svg>
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end max-[400px]:items-center">
+                            <div className="text-xs text-white/60 mb-1">{statusLabel}</div>
+                            <CountdownTimer endTime={launch.endTime} />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )
+              })}
+            </div>
+            
+            {currentLaunches.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-white/70">No tokens found. Create the first one!</p>
+                <Button 
+                  className="mt-4 bg-[#19c0f4] hover:bg-[#19c0f4]/90"
+                  onClick={() => router.push("/create")}
+                >
+                  Create Token
                 </Button>
               </div>
+            )}
+            
+            <div className="flex justify-center mt-8 space-x-4 items-center">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className={`
+                  px-3 py-1 rounded-md text-sm
+                  ${currentPage === 1 ? "text-white/50 cursor-not-allowed" : "text-white hover:text-[#19c0f4]"}
+                `}
+              >
+                «
+              </button>
 
-              {/** ─── Sort dropdown ─── **/}
-              <Select>
-                <SelectTrigger className="bg-[#21325e]/50 border-[#21325e] text-white w-full md:w-32">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white">
-                  <SelectItem
-                    value="newest"
-                    className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
-                  >
-                    Newest
-                  </SelectItem>
-                  <SelectItem
-                    value="oldest"
-                    className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
-                  >
-                    Oldest
-                  </SelectItem>
-                  <SelectItem
-                    value="market-cap"
-                    className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
-                  >
-                    Market Cap
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <span className="px-3 py-1 rounded-md text-sm text-[#19c0f4]">
+                {currentPage}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className={`
+                  px-3 py-1 rounded-md text-sm
+                  ${currentPage === totalPages || totalPages === 0 ? "text-white/50 cursor-not-allowed" : "text-white hover:text-[#19c0f4]"}
+                `}
+              >
+                »
+              </button>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((coin, index) => (
-              <div key={index} className="cursor-pointer" onClick={() => router.push("/token")}>
-              <Card
-                className="bg-[#21325e]/30 border-[#21325e] backdrop-blur-sm hover:bg-[#21325e]/50 transition-colors duration-300 rounded-2xl overflow-hidden"
-              >
-                <CardContent className="p-0">
-                  <div className="flex items-center p-6 mb-0 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
-                    <div className="flex items-center space-x-3 max-[400px]:flex-col max-[400px]:space-y-2 max-[400px]:space-x-0">
-                      <Avatar className="w-12 h-12">
-                        <AvatarImage src={coin.avatar || "/placeholder.svg"} alt={coin.name} />
-                        <AvatarFallback className="bg-[#ffbb69] text-[#000025]">FB</AvatarFallback>
-                      </Avatar>
-                      <h3 className="font-semibold text-white text-center max-[400px]:mt-0">
-                        {coin.name} ({coin.symbol})
-                      </h3>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#21325e]/50 p-4 mx-4 rounded-xl">
-                    <div className="grid grid-cols-3 gap-4 text-center max-[400px]:grid-cols-1 max-[400px]:gap-y-2">
-                      <div>
-                        <div className="text-xs text-white/60 mb-1">Symbol</div>
-                        <div className="font-semibold text-white">{coin.symbol}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-white/60 mb-1">Market cap</div>
-                        <div className="font-semibold text-white">{coin.marketCap}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-white/60 mb-1">Replies</div>
-                        <div className="font-semibold text-white">{coin.replies}</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="px-4 pt-2 pb-4">
-                    <div className="text-sm text-white/70 mb-1 text-left max-[400px]:text-center">
-                      Bonding Curve
-                    </div>
-                    <div className="relative w-full h-2 bg-[#0e1a38] rounded-full overflow-hidden">
-                      <div className="absolute top-0 left-0 h-full w-[18%] animate-pulse-bar bg-[#19c0f4]" />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
-                    <div className="flex space-x-2 max-[400px]:justify-center max-[400px]:space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 transition-colors duration-300"
-                      >
-                        <Globe className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 transition-colors duration-300"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                        </svg>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 transition-colors duration-300"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                        </svg>
-                      </Button>
-                    </div>
-                    <div className="flex flex-col items-end max-[400px]:items-center">
-                      <div className="text-xs text-white/60 mb-1">Refunds in</div>
-                      <CountdownTimer initialTime={Math.floor(Math.random() * 86400) + 3600} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-center mt-8 space-x-4 items-center">
-            {/* Left arrow: go to previous page */}
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className={`
-                px-3 py-1 rounded-md text-sm
-                ${currentPage === 1 ? "text-white/50 cursor-not-allowed" : "text-white hover:text-[#19c0f4]"}
-              `}
-            >
-              «
-            </button>
-
-            {/* Just show the active page */}
-            <span className="px-3 py-1 rounded-md text-sm text-[#19c0f4]">
-              {currentPage}
-            </span>
-
-            {/* Right arrow: go to next page */}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className={`
-                px-3 py-1 rounded-md text-sm
-                ${currentPage === totalPages ? "text-white/50 cursor-not-allowed" : "text-white hover:text-[#19c0f4]"}
-              `}
-            >
-              »
-            </button>
-          </div>
-        </div>
-      </section>
+        </section>
       </div>
     </div>
   )
