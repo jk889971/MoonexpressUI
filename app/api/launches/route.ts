@@ -8,12 +8,8 @@ import { bscTestnet } from "@/lib/chain";
 
 export async function GET() {
   try {
-    // fetch on-chain launches
-    const publicClient = createPublicClient({
-      chain: bscTestnet,
-      transport: http(),
-    });
-
+    // 1️⃣ on-chain
+    const publicClient = createPublicClient({ chain: bscTestnet, transport: http() });
     const countBn = (await publicClient.readContract({
       address: FACTORY_ADDRESS,
       abi: factoryAbi,
@@ -39,30 +35,33 @@ export async function GET() {
       });
     }
 
-    // fetch metadata from Prisma
+    // 2️⃣ off-chain metadata + deployBlock
     const metas = await prisma.launch.findMany({
       select: {
         launchAddress: true,
+        deployBlock:   true,      // ◀️ pull the block number
         description:   true,
         twitterUrl:    true,
         telegramUrl:   true,
         websiteUrl:    true,
       },
     });
-    // normalize DB addresses to lowercase for lookup
+
     const metaMap = Object.fromEntries(
       metas.map(m => [m.launchAddress.toLowerCase(), m])
     );
 
-    // merge on-chain + DB data
+    // 3️⃣ merge them
     const merged = launchesOnChain.map(lc => {
       const key = lc.launchAddress.toLowerCase();
+      const meta = metaMap[key] ?? {};
       return {
         ...lc,
-        description: metaMap[key]?.description ?? null,
-        twitterUrl:  metaMap[key]?.twitterUrl  ?? null,
-        telegramUrl: metaMap[key]?.telegramUrl ?? null,
-        websiteUrl:  metaMap[key]?.websiteUrl  ?? null,
+        deployBlock:  meta.deployBlock  ?? 0,
+        description:  meta.description  ?? null,
+        twitterUrl:   meta.twitterUrl   ?? null,
+        telegramUrl:  meta.telegramUrl  ?? null,
+        websiteUrl:   meta.websiteUrl   ?? null,
       };
     });
 

@@ -214,73 +214,15 @@ export default function CreateTokenForm() {
   }
 
   //── “Continue” CLICK: close buy‐modal, open success modal ─────────────────────
-  const handleContinue = async () => {
-    console.log("Starting transaction...");
-    setShowModal(false);
-
+  const handleContinue = () => {
+    setShowModal(false)
     if (!sim?.request) {
-      console.error("No simulation request:", simError);
-      addToast(simError?.message || "Simulation failed");
-      return;
+      addToast(simError?.message || "Simulation not ready")
+      return
     }
+    writeContract(sim.request)
+  }
 
-    try {
-      console.log("Getting account...");
-      if (!address) {
-        console.error("No account connected");
-        addToast("No connected account");
-        return;
-      }
-
-      console.log("Estimating gas...");
-      const estimated = await publicClient.estimateContractGas({
-        account: address,
-        ...sim.request,
-      });
-      console.log("Estimated gas:", estimated);
-
-      // Get current gas price
-      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-      console.log("Gas fees:", { maxFeePerGas, maxPriorityFeePerGas });
-
-      const gasLimit = estimated * 130n / 100n;
-      console.log("Gas with buffer:", gasLimit);
-
-      // Calculate estimated gas cost
-      const balance = await publicClient.getBalance({ address });
-      const requiredValue = sim.request.value || 0n;
-      const estimatedGasCost = gasLimit * (maxFeePerGas || 0n);
-      console.log("Estimated gas cost:", formatEther(estimatedGasCost), "BNB");
-      
-      if (balance < requiredValue + estimatedGasCost) {
-        const shortfall = formatEther(requiredValue + estimatedGasCost - balance);
-        addToast(`Insufficient funds. Need ${shortfall} more BNB`);
-        return;
-      }
-
-      console.log("Sending transaction...");
-      await writeContract({
-        account: address,
-        ...sim.request,
-        gas: gasLimit,
-        maxFeePerGas,       // Add explicit gas fees
-        maxPriorityFeePerGas,
-      });
-      console.log("Transaction sent successfully");
-    } catch (e: any) {
-      console.error("Full error:", e);
-      const contractError = getContractError(e);
-      if (contractError) {
-        addToast(`Contract error: ${contractError.shortMessage}`);
-      } else if (e?.walk?.toString().includes("insufficient funds")) {
-        addToast("Insufficient funds for transaction");
-      } else if (e?.details) {
-        addToast(e.details);
-      } else {
-        addToast(e?.shortMessage || e?.message || "Transaction failed");
-      }
-    }
-  };
 
   /**************************************************************************
  *  Δ  PREPARE write()
@@ -321,7 +263,7 @@ export default function CreateTokenForm() {
   const {
     writeContract,           // function to call
     data: hash,              // hash after write
-    isPending: submitting,   // replaces isLoading
+    isPending: isWriting,
     error: writeError,
   } = useWriteContract()
 
@@ -648,7 +590,7 @@ export default function CreateTokenForm() {
                     bg-[#19c0f4] hover:bg-[#19c0f4] hover:ring-4 hover:ring-[#19c0f4]/30 active:brightness-90
                   "
                   onClick={onClickCreate} disabled={
-                  uploading || submitting ||
+                  uploading || isWriting ||
                   !tokenName.trim() || !symbol.trim() || !selectedFile ||
                   refundable === null || claimLP === null || durationMin === null
                 }>
@@ -676,7 +618,7 @@ export default function CreateTokenForm() {
                       </svg>
                       Processing&nbsp;Image
                     </>
-                  ) : submitting ? "Confirming…" : "Create"}
+                  ) : isWriting ? "Confirming…" : "Create"}
                 </Button>
               </div>
 
@@ -758,19 +700,49 @@ export default function CreateTokenForm() {
                   <div className="space-y-3 pt-4">
                     {/* Continue Button with “Connect Wallet”–style hover */}
                     <Button
-                      disabled={uploading || !sim?.request}
                       onClick={handleContinue}
+                      disabled={uploading || !sim?.request || isWriting}
                       className={`
                         w-full text-white font-medium text-sm sm:text-base
                         rounded-[12px] shadow-[inset_0px_2px_2px_0px_#FFFFFF66]
                         transition-all duration-300
                         bg-[#19c0f4] hover:bg-[#19c0f4]/90
                         flex items-center justify-center gap-2
-                        ${uploading || !sim?.request ? 'cursor-not-allowed opacity-70' : ''}
+                        ${(uploading || !sim?.request || isWriting) ? 'cursor-not-allowed opacity-70' : ''}
                       `}
                       style={{ height: "48px", backgroundSize: "200% 200%" }}
                     >
-                      {!sim?.request ? "Preparing…" : "Continue"}
+                      {uploading ? (
+                        <>
+                          <svg
+                            className="h-4 w-4 animate-spin mr-1"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                            />
+                            <path
+                              className="opacity-75"
+                              d="M22 12a10 10 0 01-10 10"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          Processing Image
+                        </>
+                      ) : isWriting ? (
+                        "Sending…"
+                      ) : !sim?.request ? (
+                        "Preparing…"
+                      ) : (
+                        "Continue"
+                      )}
                     </Button>
 
                     <Button
