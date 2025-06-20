@@ -19,10 +19,18 @@ import {
   useBalance,
   usePublicClient,
 } from 'wagmi'
-import { parseEther, formatEther, decodeEventLog, getAbiItem } from "viem"
+import { parseEther, formatEther } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
-import launchAbi from '@/lib/abis/CurveLaunch.json';
+import { ethers } from "ethers"
+import launchAbi from "@/lib/abis/CurveLaunch.json"
+
+// Interface + topic so we can parse TokensBought logs
+const launchInterface    = new ethers.utils.Interface(launchAbi)
+const tokensBoughtTopic  = launchInterface.getEventTopic("TokensBought")
+
+// Root URL for your API (set NEXT_PUBLIC_APP_URL in .env)
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
 type Toast = {
   id: number
@@ -57,8 +65,6 @@ export default function CreateTokenForm() {
   // File‐input ref
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const didPostRef = useRef(false)
-
   //── TOAST STATE ────────────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -69,6 +75,10 @@ export default function CreateTokenForm() {
   const [selectedAmountButton, setSelectedAmountButton] = useState<string | null>(null)
 
   const publicClient = usePublicClient({ chainId: bscTestnet.id });
+
+  // ensure we only index + post once per mint
+  const didIndexRef = useRef(false)
+
 
   // Prevent default browser "snatch" behavior and track dragging globally
   useEffect(() => {
@@ -326,30 +336,26 @@ export default function CreateTokenForm() {
   const [deployBlock,  setDeployBlock]    = useState<string>();
 
   useEffect(() => {
-    // only run once, right after success
     if (
       !isSuccess ||
       !receipt?.transactionHash ||
       !predictedLaunch ||
       !predictedToken ||
-      didPostRef.current
-    ) {
-      return
-    }
-    didPostRef.current = true
+      didIndexRef.current
+    ) return
 
-    (async () => {
+    // mark so we never do this twice
+    didIndexRef.current = true
+
+    ;(async () => {
       const launchAddr  = predictedLaunch.toLowerCase()
       const tokenAddr   = predictedToken.toLowerCase()
       const deployBlock = receipt.blockNumber.toString()
 
-      setNewTokenAddr(tokenAddr);
-      setDeployBlock(deployBlock);
-
-      // 1) persist launch info
+      // 1) Persist the launch info
       try {
-        await fetch("/api/launch", {
-          method: "POST",
+        await fetch(`${APP_URL}/api/launch`, {
+          method:  "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             launchAddr,
@@ -363,56 +369,60 @@ export default function CreateTokenForm() {
         })
       } catch (err) {
         console.error("Launch insert failed:", err)
-        return
+        return  // stop here if launch record fails
       }
 
-      // 2) if user pre-bought, post the trade
-      if (Number(preBuyAmount) > 0) {
-        let bnbSpentWei = 0n
-        let tokenAmtWei = 0n
-
-        for (const log of receipt.logs) {
-          try {
-            const decoded = decodeEventLog({
-              abi:    launchAbi,
-              data:   log.data,
-              topics: log.topics,
-              strict: true,
-            })
-            if (decoded.eventName === "TokensBought") {
-              bnbSpentWei = decoded.args.bnbSpent
-              tokenAmtWei = decoded.args.tokenAmount
-              break
-            }
-          } catch {
-            // not the right log
-          }
-        }
-
-        const bnbAmount   = Number(bnbSpentWei) / 1e18
-        const tokenAmount = Number(tokenAmtWei) / 1e18
-
+      // 2) If the creator pre‐bought, grab the very first TokensBought event
+      if (creatorPreBuys && Number(preBuyAmount) > 0) {
         try {
-          await fetch(`/api/trades/${launchAddr}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              wallet:      address,
-              type:        "Buy",
-              bnbAmount:   bnbAmount.toFixed(6),
-              tokenAmount: tokenAmount.toString(),
-              txHash:      receipt.transactionHash,
-            }),
+          const logs = await publicClient.getLogs({
+            address:   launchAddr,
+            fromBlock: receipt.blockNumber,
+            toBlock:   receipt.blockNumber,
+            topics:    [tokensBoughtTopic],
           })
+
+          if (logs.length > 0) {
+            const parsed = launchInterface.parseLog(logs[0])
+            const buyer       = (parsed.args.buyer as string).toLowerCase()
+            const bnbSpent    = ethers.utils.formatEther(parsed.args.bnbSpent)
+            const tokenAmount = ethers.utils.formatEther(parsed.args.tokenAmount)
+            const txHash      = logs[0].transactionHash
+
+            // 3) POST that trade to your trades API
+            await fetch(`${APP_URL}/api/trades/${launchAddr}`, {
+              method:  "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                wallet:      buyer,
+                type:        "Buy",
+                bnbAmount:   bnbSpent,
+                tokenAmount: tokenAmount,
+                txHash,
+              }),
+            })
+          }
         } catch (err) {
-          console.error("Trade insert failed:", err)
+          console.error("Trade indexing failed:", err)
         }
       }
 
-      // 3) show the success modal
+      // 4) Finally show the success modal
       setShowSuccessModal(true)
     })()
-  }, [isSuccess, receipt, predictedLaunch, predictedToken])
+  }, [
+    isSuccess,
+    receipt,
+    predictedLaunch,
+    predictedToken,
+    creatorPreBuys,
+    preBuyAmount,
+    description,
+    twitterLink,
+    telegramLink,
+    websiteLink,
+    publicClient,
+  ])
 
   return (
     <div className="min-h-screen bg-[#0b152f] flex flex-col">
