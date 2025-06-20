@@ -450,9 +450,10 @@ export default function Component() {
                 </div>
 
                 {/* Toggles */}
-                <div className="flex flex-wrap items-center space-x-4 mb-4 justify-center md:justify-start">
+                <div className="mt-4 flex flex-wrap items-center space-x-6 justify-center md:justify-start">
                   {/* Creator Bought */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-row-reverse">
+                    <span className="text-sm text-white">Creator Bought</span>
                     <input
                       id="toggle-creator"
                       type="checkbox"
@@ -463,22 +464,24 @@ export default function Component() {
                     <label
                       htmlFor="toggle-creator"
                       className={`
-                        relative inline-flex h-6 w-12 items-center rounded-full transition-colors
+                        relative inline-flex h-6 w-12 items-center rounded-full
+                        transition-colors duration-300 ease-in-out
                         ${showCreator ? "bg-[#19c0f4]" : "bg-white/30"}
                       `}
                     >
                       <span
                         className={`
-                          block h-4 w-4 transform rounded-full bg-white shadow transition-transform
+                          block h-4 w-4 transform rounded-full bg-white shadow
+                          transition-transform duration-200 ease-in-out
                           ${showCreator ? "translate-x-6" : "translate-x-1"}
                         `}
                       />
                     </label>
-                    <span className="text-sm text-white">Creator Bought</span>
                   </div>
 
                   {/* Refundable */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-row-reverse">
+                    <span className="text-sm text-white">Refundable</span>
                     <input
                       id="toggle-refundable"
                       type="checkbox"
@@ -489,22 +492,24 @@ export default function Component() {
                     <label
                       htmlFor="toggle-refundable"
                       className={`
-                        relative inline-flex h-6 w-12 items-center rounded-full transition-colors
+                        relative inline-flex h-6 w-12 items-center rounded-full
+                        transition-colors duration-300 ease-in-out
                         ${showRefundable ? "bg-[#19c0f4]" : "bg-white/30"}
                       `}
                     >
                       <span
                         className={`
-                          block h-4 w-4 transform rounded-full bg-white shadow transition-transform
+                          block h-4 w-4 transform rounded-full bg-white shadow
+                          transition-transform duration-200 ease-in-out
                           ${showRefundable ? "translate-x-6" : "translate-x-1"}
                         `}
                       />
                     </label>
-                    <span className="text-sm text-white">Refundable</span>
                   </div>
 
                   {/* LPs */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-row-reverse">
+                    <span className="text-sm text-white">LPs</span>
                     <input
                       id="toggle-lps"
                       type="checkbox"
@@ -515,18 +520,19 @@ export default function Component() {
                     <label
                       htmlFor="toggle-lps"
                       className={`
-                        relative inline-flex h-6 w-12 items-center rounded-full transition-colors
+                        relative inline-flex h-6 w-12 items-center rounded-full
+                        transition-colors duration-300 ease-in-out
                         ${showLPs ? "bg-[#19c0f4]" : "bg-white/30"}
                       `}
                     >
                       <span
                         className={`
-                          block h-4 w-4 transform rounded-full bg-white shadow transition-transform
+                          block h-4 w-4 transform rounded-full bg-white shadow
+                          transition-transform duration-200 ease-in-out
                           ${showLPs ? "translate-x-6" : "translate-x-1"}
                         `}
                       />
                     </label>
-                    <span className="text-sm text-white">LPs</span>
                   </div>
                 </div>
 
