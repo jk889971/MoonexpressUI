@@ -17,12 +17,12 @@ import {
   useReadContract,
   useAccount,
   useBalance,
-  usePublicClient,
 } from 'wagmi'
 import { parseEther, formatEther, decodeEventLog, encodeEventTopics } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
 import launchAbi from "@/lib/abis/CurveLaunch.json"
+import { customrpc } from '@/lib/customrpc'
 
 type Toast = {
   id: number
@@ -70,8 +70,6 @@ export default function CreateTokenForm() {
   const [isDragging, setIsDragging] = useState(false)
 
   const [selectedAmountButton, setSelectedAmountButton] = useState<string | null>(null)
-
-  const publicClient = usePublicClient({ chainId: bscTestnet.id });
 
   // ensure we only index + post once per mint
   const didIndexRef = useRef(false)
@@ -372,7 +370,7 @@ export default function CreateTokenForm() {
       // 2) If the creator pre‐bought, grab the very first TokensBought event
       if (creatorPreBuys && Number(preBuyAmount) > 0) {
         try {
-          const logs = await publicClient.getLogs({
+          const logs = await customrpc.getLogs({
             address:   launchAddr,
             fromBlock: receipt.blockNumber,
             toBlock:   receipt.blockNumber,
@@ -423,7 +421,6 @@ export default function CreateTokenForm() {
     twitterLink,
     telegramLink,
     websiteLink,
-    publicClient,
   ])
 
   return (
