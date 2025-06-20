@@ -91,6 +91,10 @@ export default function Component() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [cardsPerPage, setCardsPerPage] = useState<number>(15);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "market-cap">("newest")
+  const [showCreator, setShowCreator] = useState(true)
+  const [showRefundable, setShowRefundable] = useState(true)
+  const [showLPs, setShowLPs] = useState(true)
   const starfieldRef = useRef<HTMLCanvasElement | null>(null);
   
   // Fix 1: Handle loading states
@@ -143,36 +147,43 @@ export default function Component() {
     };
   });
   
-  // Sort by newest first
-  const sortedLaunches = [...launches].sort((a, b) => 
-    b.createdAt - a.createdAt
-  );
-  
-  // Filter launches based on search query
-  const filteredLaunches = sortedLaunches.filter((launch: any) =>
-    launch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    launch.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 1) Apply tag-toggles (we’ll assume you’ve added those three pieces of state)
+  let working = launches.filter(l => {
+    if (!showCreator && l.creatorPreBuys) return false
+    if (!showRefundable && l.isRefundable) return false
+    if (!showLPs && l.claimLP) return false
+    return true
+  })
 
-  // Pagination
-  const indexOfLast = currentPage * cardsPerPage;
-  const indexOfFirst = indexOfLast - cardsPerPage;
-  const currentLaunches = filteredLaunches.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(filteredLaunches.length / cardsPerPage);
+  // 2) Sort by the selected sortBy value
+  if (sortBy === "newest") {
+    working.sort((a, b) => b.createdAt - a.createdAt)
+  } else if (sortBy === "oldest") {
+    working.sort((a, b) => a.createdAt - b.createdAt)
+  } else { // "market-cap"
+    // live ones first, each group sorted desc by marketCapUSD
+    const live = working.filter(l => l.status === "Live")
+    const other = working.filter(l => l.status !== "Live")
+    live.sort((a, b) => (b.marketCapUSD || 0) - (a.marketCapUSD || 0))
+    other.sort((a, b) => (b.marketCapUSD || 0) - (a.marketCapUSD || 0))
+    working = [...live, ...other]
+  }
 
   useEffect(() => {
-  if (filteredLaunches.length > 0) {
-    const newTotal = Math.ceil(filteredLaunches.length / cardsPerPage);
-    setCurrentPage(prev => {
-      // Reset to page 1 if no items would be shown
-      if (prev < 1) return 1;
-      // Adjust if current page exceeds new total
-      return prev > newTotal ? newTotal : prev;
-    });
-  } else {
-    setCurrentPage(1);
-  }
-}, [cardsPerPage, filteredLaunches.length]);
+    setCurrentPage(1)
+  }, [searchQuery, sortBy, showCreator, showRefundable, showLPs])
+
+  // 3) Then apply your text-search filter
+  const filteredAndSorted = working.filter(l =>
+    l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    l.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  // 4) Finally, paginate filteredAndSorted:
+  const indexOfLast  = currentPage * cardsPerPage
+  const indexOfFirst = indexOfLast - cardsPerPage
+  const currentLaunches = filteredAndSorted.slice(indexOfFirst, indexOfLast)
+  const totalPages       = Math.ceil(filteredAndSorted.length / cardsPerPage)
 
   useEffect(() => {
     function updateCardsPerPage() {
@@ -438,10 +449,55 @@ export default function Component() {
                   </Button>
                 </div>
 
+                {/* Toggles */}
+                <div className="flex flex-wrap items-center space-x-3 mb-4 justify-center md:justify-start">
+                  <button
+                    className={`
+                      inline-flex items-center justify-center
+                      px-3 py-1 rounded-full border
+                      transition
+                      ${showCreator
+                        ? 'bg-[#19c0f4] text-white border-[#19c0f4]'
+                        : 'bg-transparent text-[#19c0f4] border-[#19c0f4]'}
+                    `}
+                    onClick={() => setShowCreator(!showCreator)}
+                  >
+                    Creator Bought
+                  </button>
+
+                  <button
+                    className={`
+                      inline-flex items-center justify-center
+                      px-3 py-1 rounded-full border
+                      transition
+                      ${showRefundable
+                        ? 'bg-[#19c0f4] text-white border-[#19c0f4]'
+                        : 'bg-transparent text-[#19c0f4] border-[#19c0f4]'}
+                    `}
+                    onClick={() => setShowRefundable(!showRefundable)}
+                  >
+                    Refundable
+                  </button>
+
+                  <button
+                    className={`
+                      inline-flex items-center justify-center
+                      px-3 py-1 rounded-full border
+                      transition
+                      ${showLPs
+                        ? 'bg-[#19c0f4] text-white border-[#19c0f4]'
+                        : 'bg-transparent text-[#19c0f4] border-[#19c0f4]'}
+                    `}
+                    onClick={() => setShowLPs(!showLPs)}
+                  >
+                    LPs
+                  </button>
+                </div>
+
                 {/** ─── Sort dropdown ─── **/}
-                <Select>
+                <Select onValueChange={(v) => setSortBy(v as any)} defaultValue={sortBy}>
                   <SelectTrigger className="bg-[#21325e]/50 border-[#21325e] text-white w-full md:w-32">
-                    <SelectValue placeholder="Sort by" />
+                    <SelectValue>{sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : 'Market Cap'}</SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white">
                     <SelectItem
