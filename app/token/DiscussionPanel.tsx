@@ -55,8 +55,11 @@ export default function DiscussionPanel({
 
   function nest(list: Comment[], parentId: string | null = null): Comment[] {
     return list
-      .filter((c) => (parentId ? c.parentId === parentId : !c.parentId))
-      .map((c) => ({ ...c, replies: nest(list, c.id) }));
+      .filter(c => c.parentId === parentId)
+      .map(c => ({
+        ...c,
+        replies: nest(list, c.id)
+      }));
   }
 
   const comments = nest(flat);

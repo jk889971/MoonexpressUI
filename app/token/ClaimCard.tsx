@@ -184,10 +184,21 @@ export default function ClaimCard({
           fnName = "claimRefundIfLPFailed"
         }
       } else {
-        // Sale still live and cap not reached
-        title = label = claimLP ? "Claim LPs" : "Claim Tokens"
+      // Sale still live and cap not reached
+      if (isRefundable) {
+        // refunds allowed during the sale
+        title = label = claimLP
+          ? "Claim LPs or Refund"
+          : "Claim Tokens or Refund";
+        fnName = null
+      } else {
+        // non-refundable sale
+        title = label = claimLP
+          ? "Claim LPs or Sell"
+          : "Claim Tokens or Sell";
         fnName = null
       }
+    }
     } else {
       // After sale end
       if (!capReached) {
@@ -196,7 +207,7 @@ export default function ClaimCard({
           title = label = "Claim Refund"
           fnName = "claimRefund"
         } else {
-          title = label = "No Refunds"
+          title = label = "Sells Enabled"
           fnName = null
         }
       } else {

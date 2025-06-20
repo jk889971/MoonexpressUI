@@ -4,11 +4,15 @@ import { createClient } from '@supabase/supabase-js'
 import launchAbi from '@/lib/abis/CurveLaunch.json'
 import { createPublicClient, http } from 'viem'
 import { bscTestnet } from '@/lib/chain'
+import { PrismaClient } from '@prisma/client'
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_KEY!
 )
+
+// Initialize Prisma client
+const prisma = new PrismaClient()
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,7 +34,12 @@ export async function POST(req: NextRequest) {
     for (const launchAddress of launchAddresses) {
       try {
         // Fetch blockchain data
-        const [claimView, finalized, drainMode] = await Promise.all([
+        const [
+          claimView, 
+          finalized, 
+          drainMode,
+          creatorPreBuys // NEW: Fetch creator pre-buy status
+        ] = await Promise.all([
           publicClient.readContract({
             address: launchAddress as `0x${string}`,
             abi: launchAbi,
@@ -45,6 +54,12 @@ export async function POST(req: NextRequest) {
             address: launchAddress as `0x${string}`,
             abi: launchAbi,
             functionName: 'drainMode',
+          }),
+          // NEW: Fetch creator pre-buy status
+          publicClient.readContract({
+            address: launchAddress as `0x${string}`,
+            abi: launchAbi,
+            functionName: 'creatorBuys',
           })
         ])
         
@@ -61,13 +76,10 @@ export async function POST(req: NextRequest) {
           functionName: 'getLiveMarketCapUsd',
         })
         
-        // Count ALL comments (including replies) for this launch
-        const { count: totalComments } = await supabase
-          .from('Comment')
-          .select('*', { count: 'exact', head: true })
-          .eq('launchAddress', launchAddress);
-          
-        const totalCount = totalComments || 0;
+        // Count ALL comments (including replies) using Prisma
+        const commentCount = await prisma.comment.count({
+          where: { launchAddress: launchAddress.toLowerCase() }
+        });
         
         results.push({
           launchAddress,
@@ -77,12 +89,27 @@ export async function POST(req: NextRequest) {
           finalized,
           lpFailed,
           drainMode,
+          creatorPreBuys, // NEW: Add creator pre-buy status
           marketCapUSD: Number(marketCapUSD) / 1e26, // Convert to USD
           progress,
-          repliesCount: totalCount,
+          repliesCount: commentCount, // Use Prisma count
         })
       } catch (e) {
         console.error(`Error processing ${launchAddress}:`, e)
+        // Add fallback entry with defaults
+        results.push({
+          launchAddress,
+          isRefundable: false,
+          claimLP: false,
+          endTime: 0,
+          finalized: false,
+          lpFailed: false,
+          drainMode: false,
+          creatorPreBuys: false,
+          marketCapUSD: 0,
+          progress: 0,
+          repliesCount: 0,
+        })
       }
     }
     
@@ -90,5 +117,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error fetching dynamic data:', error)
     return NextResponse.json({ error: 'Failed to fetch dynamic data' }, { status: 500 })
+  } finally {
+    // Disconnect Prisma client
+    await prisma.$disconnect();
   }
 }

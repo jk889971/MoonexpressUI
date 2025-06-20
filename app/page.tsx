@@ -571,7 +571,7 @@ export default function Component() {
                             )}
                             {launch.creatorPreBuys && (
                               <span className="bg-yellow-500/20 text-yellow-500 text-xs px-2 py-1 rounded">
-                                Creator bought
+                                Creator Bought
                               </span>
                             )}
                           </div>
