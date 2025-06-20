@@ -22,11 +22,11 @@ import {
 import { parseEther, formatEther } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
-import { ethers } from "ethers"
+import { Interface } from "ethers"
 import launchAbi from "@/lib/abis/CurveLaunch.json"
 
 // Interface + topic so we can parse TokensBought logs
-const launchInterface    = new ethers.utils.Interface(launchAbi)
+const launchInterface    = new Interface(launchAbi)
 const tokensBoughtTopic  = launchInterface.getEventTopic("TokensBought")
 
 // Root URL for your API (set NEXT_PUBLIC_APP_URL in .env)
@@ -385,8 +385,8 @@ export default function CreateTokenForm() {
           if (logs.length > 0) {
             const parsed = launchInterface.parseLog(logs[0])
             const buyer       = (parsed.args.buyer as string).toLowerCase()
-            const bnbSpent    = ethers.utils.formatEther(parsed.args.bnbSpent)
-            const tokenAmount = ethers.utils.formatEther(parsed.args.tokenAmount)
+            const bnbSpent    = formatEther(parsed.args.bnbSpent as bigint)
+            const tokenAmount = formatEther(parsed.args.tokenAmount as bigint)
             const txHash      = logs[0].transactionHash
 
             // 3) POST that trade to your trades API
