@@ -550,19 +550,20 @@ export default function Component() {
                 </Select>
               </div>
             </div>
-
-            {/* Search bar */}
-              <div className="mt-4 w-full md:w-80 relative">
-                <Input
-                  placeholder="Search for Coins"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="bg-[#21325e]/50 border-[#21325e] text-white placeholder:text-white/50 pr-12 w-full"
-                />
-                <Button className="absolute right-0 top-0 bottom-0 bg-[#19c0f4] hover:bg-[#16abd9] text-white rounded-l-none hover:brightness-110 transition-all duration-300">
-                  <Search className="w-4 h-4" />
-                </Button>
-              </div>
+            <div className="relative w-screen left-1/2 -translate-x-1/2 px-6">
+                {/* Search bar */}
+                  <div className="mt-2 mb-2 w-full relative">
+                    <Input
+                      placeholder="Search for Coins"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="bg-[#21325e]/50 border-[#21325e] text-white placeholder:text-white/50 pr-12 w-full"
+                    />
+                    <Button className="absolute right-0 top-0 bottom-0 bg-[#19c0f4] hover:bg-[#16abd9] text-white rounded-l-none hover:brightness-110 transition-all duration-300">
+                      <Search className="w-4 h-4" />
+                    </Button>
+                  </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {staticLoading ? (
