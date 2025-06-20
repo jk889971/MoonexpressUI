@@ -428,7 +428,7 @@ export default function Component() {
       <div className="relative z-0">
         <section className="relative z-10 px-6 pb-16 pt-4">
           <div className="max-w-7xl mx-auto bg-[#0B152F] p-8 rounded-3xl">
-            <div className="flex max-[900px]:flex-col max-[900px]:items-center md:flex-row items-center justify-between mb-8 gap-4 max-[400px]:items-center">
+            <div className="flex max-[900px]:flex-col max-[900px]:items-center md:flex-row items-center justify-between mb-8 gap-4 max-[400px]:items-center max-[900px]:justify-center">
               <div className="flex items-center space-x-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-1 max-[400px]:space-x-0">
                 <span className="text-3xl font-bold">{launches.length}</span>
                 <span className="text-xl text-white/60 max-[400px]:text-center">Coins Created</span>
@@ -436,7 +436,7 @@ export default function Component() {
 
               <div className="flex flex-wrap items-center justify-between gap-4">
                 {/* Toggles */}
-                <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-6 max-[900px]:flex-col max-[900px]:space-x-0 max-[900px]:space-y-4 max-[900px]:w-full max-[900px]:items-center">
                   {/* Creator Bought */}
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Creator Bought</span>
@@ -704,6 +704,10 @@ export default function Component() {
                             </div>
                           </div>
                           <div className="flex items-center justify-between p-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
+                            <div className="flex flex-col items-end max-[400px]:items-center">
+                              <div className="text-sm text-white/60 mb-1">{statusLabel}</div>
+                              <CountdownTimer endTime={launch.endTime} />
+                            </div>
                             <div className="flex space-x-2 max-[400px]:justify-center max-[400px]:space-x-2">
                               {/* ─── Social Links (always show icons, enable only when URL exists) ─── */}
                               <div className="flex space-x-2">
@@ -767,10 +771,6 @@ export default function Component() {
                                   </span>
                                 )}
                               </div>
-                            </div>
-                            <div className="flex flex-col items-end max-[400px]:items-center">
-                              <div className="text-sm text-white/60 mb-1">{statusLabel}</div>
-                              <CountdownTimer endTime={launch.endTime} />
                             </div>
                           </div>
                         </CardContent>
