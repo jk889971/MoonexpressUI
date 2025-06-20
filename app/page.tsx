@@ -16,7 +16,6 @@ import {
 import { Search, Globe } from "lucide-react"
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher"
-import { GlowingCard } from "@/components/GlowingCard"
 
 // Countdown timer component
 function CountdownTimer({ endTime }: { endTime: number }) {
@@ -288,20 +287,13 @@ export default function Component() {
     return () => { active = false }
   }, [])
 
-  const [newlyAdded, setNewlyAdded] = useState<string[]>([])
-  const prevAddrs = useRef<string[]>([])
-
-  useEffect(() => {
-    const currentIds = currentLaunches.map(l => l.launchAddress)
-    // anything in currentIds but not in prevAddrs => brand-new
-    const added = currentIds.filter(id => !prevAddrs.current.includes(id))
-    if (added.length) {
-      setNewlyAdded(added)
-      // clear the glow after 2s
-      setTimeout(() => setNewlyAdded([]), 2000)
+  function normalizeUrl(maybeUrl?: string | null) {
+    if (!maybeUrl) return null;
+    if (!/^https?:\/\//i.test(maybeUrl)) {
+      return 'https://' + maybeUrl;
     }
-    prevAddrs.current = currentIds
-  }, [currentLaunches])
+    return maybeUrl;
+  }
 
   return (
     <div className="min-h-screen bg-[#000025] text-white relative overflow-y-auto">
@@ -488,8 +480,6 @@ export default function Component() {
                 </div>
               ) : (
                 currentLaunches.map((launch: any) => {
-
-                  const isNew = newlyAdded.includes(launch.launchAddress)
                   
                   let dotColor = "bg-green-400"   // default for Live
                   let dotGlow  = "shadow-[0_0_6px_2px_rgba(34,197,94,.8)]"
@@ -518,10 +508,14 @@ export default function Component() {
                     launch.status === "Refunded" ? "Refunds available" : 
                     launch.status === "Migrated" ? "Claim available" : 
                     "Status";
+
+                  const twitterLink = normalizeUrl(launch.twitterUrl);
+                  const telegramLink = normalizeUrl(launch.telegramUrl);
+                  const websiteLink = normalizeUrl(launch.websiteUrl);
                   
                   return (
-                    <GlowingCard key={launch.launchAddress} isNew={isNew}>
-                    <div
+                    <div 
+                      key={launch.tokenAddress} 
                       className="cursor-pointer" 
                       onClick={() => router.push(
                         `/token/${launch.tokenAddress}?b=${launch.deployBlock}&s=${launch.symbol}`
@@ -612,9 +606,9 @@ export default function Component() {
                               {/* ─── Social Links (always show icons, enable only when URL exists) ─── */}
                               <div className="flex space-x-2">
                                 {/** Website **/}
-                                {launch.websiteUrl ? (
+                                {websiteLink ? (
                                   <a
-                                    href={launch.websiteUrl}
+                                    href={websiteLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1 rounded-full text-[#19c0f4] hover:bg-[#19c0f4]/10 transition-colors"
@@ -628,9 +622,9 @@ export default function Component() {
                                 )}
 
                                 {/** Telegram **/}
-                                {launch.telegramUrl ? (
+                                {telegramLink ? (
                                   <a
-                                    href={launch.telegramUrl}
+                                    href={telegramLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1 rounded-full text-[#19c0f4] hover:bg-[#19c0f4]/10 transition-colors"
@@ -650,9 +644,9 @@ export default function Component() {
                                 )}
 
                                 {/** Twitter **/}
-                                {launch.twitterUrl ? (
+                                {twitterLink ? (
                                   <a
-                                    href={launch.twitterUrl}
+                                    href={twitterLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1 rounded-full text-[#19c0f4] hover:bg-[#19c0f4]/10 transition-colors"
@@ -680,7 +674,6 @@ export default function Component() {
                         </CardContent>
                       </Card>
                     </div>
-                    </GlowingCard>
                   )
                 })
               )}

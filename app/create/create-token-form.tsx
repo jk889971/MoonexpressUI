@@ -243,7 +243,7 @@ export default function CreateTokenForm() {
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
       console.log("Gas fees:", { maxFeePerGas, maxPriorityFeePerGas });
 
-      const gasLimit = estimated + (estimated / 5n);
+      const gasLimit = estimated * 130n / 100n;
       console.log("Gas with buffer:", gasLimit);
 
       // Calculate estimated gas cost
@@ -388,6 +388,8 @@ export default function CreateTokenForm() {
       // NEW — persist extra fields in Supabase
       const launchAddr =
         receipt?.logs?.[0]?.address ?? FACTORY_ADDRESS;  // fallback
+      
+      const deployBlock = receipt.blockNumber.toString()
 
       // 2 persist to Supabase
       fetch("/api/launch", {
@@ -400,6 +402,7 @@ export default function CreateTokenForm() {
           twitter  : twitterLink || null,
           telegram : telegramLink || null,
           website  : websiteLink || null,
+          deployBlock,
         }),
       }).catch(console.error)
 

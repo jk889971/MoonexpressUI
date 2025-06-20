@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
   // normalise ⬇
   const launchAddr = (body.launchAddr as string).toLowerCase()
   const tokenAddr  = (body.tokenAddr  as string).toLowerCase()
+  const deployBlock = Number(body.deployBlock)
 
   await prisma.launch.create({
     data: {
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
       twitterUrl   : body.twitter     || null,
       telegramUrl  : body.telegram    || null,
       websiteUrl   : body.website     || null,
+      deployBlock,
     },
   })
 
