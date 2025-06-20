@@ -369,7 +369,7 @@ export default function Component() {
                   text-center lg:text-left
                 "
               >
-                Memecoins Express
+                Moon Express
                 <br />
                 Way to the Moon
               </h1>
@@ -428,16 +428,19 @@ export default function Component() {
       <div className="relative z-0">
         <section className="relative z-10 px-6 pb-16 pt-4">
           <div className="max-w-7xl mx-auto bg-[#0B152F] p-8 rounded-3xl">
-            <div className="flex max-[900px]:flex-col max-[900px]:items-center md:flex-row items-center justify-between mb-8 gap-4 max-[400px]:items-center">
-              <div className="flex items-center space-x-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-1 max-[400px]:space-x-0">
+            {/* Combined container for Coins Created, Toggles, and Sort */}
+            <div className="flex flex-col max-[900px]:items-center min-[900px]:flex-row min-[900px]:justify-between min-[900px]:items-center mb-4">
+              {/* Coins Created - Left-aligned on desktop, centered on mobile */}
+              <div className="flex items-center space-x-4 max-[900px]:flex-col max-[900px]:space-y-1 max-[900px]:space-x-0 max-[900px]:mb-4">
                 <span className="text-3xl font-bold">{launches.length}</span>
-                <span className="text-xl text-white/60 max-[400px]:text-center">Coins Created</span>
+                <span className="text-xl text-white/60">Coins Created</span>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                {/* Toggles */}
-                <div className="flex items-center space-x-6 max-[900px]:flex-col max-[900px]:space-x-0 max-[900px]:space-y-4 max-[900px]:w-full max-[900px]:items-center">
-                  {/* Creator Bought */}
+              {/* Right-side container for Toggles and Sort */}
+              <div className="flex max-[900px]:flex-col gap-4 items-center">
+                {/* Toggles Container - Full width on mobile */}
+                <div className="flex flex-wrap justify-center gap-4 max-[900px]:w-full">
+                  {/* Creator Bought Toggle */}
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Creator Bought</span>
                     <input
@@ -449,24 +452,19 @@ export default function Component() {
                     />
                     <label
                       htmlFor="toggle-creator"
-                      className={`
-                        cursor-pointer
-                        relative inline-flex h-6 w-12 items-center rounded-full
-                        transition-colors duration-300 ease-in-out
-                        ${showCreator ? "bg-[#19c0f4]" : "bg-white/30"}
-                      `}
+                      className={`cursor-pointer relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-300 ease-in-out ${
+                        showCreator ? "bg-[#19c0f4]" : "bg-white/30"
+                      }`}
                     >
                       <span
-                        className={`
-                          block h-4 w-4 transform rounded-full bg-white shadow
-                          transition-transform duration-200 ease-in-out
-                          ${showCreator ? "translate-x-6" : "translate-x-1"}
-                        `}
+                        className={`block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ease-in-out ${
+                          showCreator ? "translate-x-6" : "translate-x-1"
+                        }`}
                       />
                     </label>
                   </div>
 
-                  {/* Refundable */}
+                  {/* Non-refundable Toggle */}
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Non-refundable</span>
                     <input
@@ -478,26 +476,21 @@ export default function Component() {
                     />
                     <label
                       htmlFor="toggle-refundable"
-                      className={`
-                        cursor-pointer
-                        relative inline-flex h-6 w-12 items-center rounded-full
-                        transition-colors duration-300 ease-in-out
-                        ${showNonRefundable ? "bg-[#19c0f4]" : "bg-white/30"}
-                      `}
+                      className={`cursor-pointer relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-300 ease-in-out ${
+                        showNonRefundable ? "bg-[#19c0f4]" : "bg-white/30"
+                      }`}
                     >
                       <span
-                        className={`
-                          block h-4 w-4 transform rounded-full bg-white shadow
-                          transition-transform duration-200 ease-in-out
-                          ${showNonRefundable ? "translate-x-6" : "translate-x-1"}
-                        `}
+                        className={`block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ease-in-out ${
+                          showNonRefundable ? "translate-x-6" : "translate-x-1"
+                        }`}
                       />
                     </label>
                   </div>
 
-                  {/* LPs */}
+                  {/* LPs Toggle */}
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-white">LPs</span>
+                    <span className="text-sm text-white">Claim LP Mode</span>
                     <input
                       id="toggle-lps"
                       type="checkbox"
@@ -507,54 +500,53 @@ export default function Component() {
                     />
                     <label
                       htmlFor="toggle-lps"
-                      className={`
-                        cursor-pointer
-                        relative inline-flex h-6 w-12 items-center rounded-full
-                        transition-colors duration-300 ease-in-out
-                        ${showLPs ? "bg-[#19c0f4]" : "bg-white/30"}
-                      `}
+                      className={`cursor-pointer relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-300 ease-in-out ${
+                        showLPs ? "bg-[#19c0f4]" : "bg-white/30"
+                      }`}
                     >
                       <span
-                        className={`
-                          block h-4 w-4 transform rounded-full bg-white shadow
-                          transition-transform duration-200 ease-in-out
-                          ${showLPs ? "translate-x-6" : "translate-x-1"}
-                        `}
+                        className={`block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ease-in-out ${
+                          showLPs ? "translate-x-6" : "translate-x-1"
+                        }`}
                       />
                     </label>
                   </div>
                 </div>
 
-                {/** ─── Sort dropdown ─── **/}
-                <Select onValueChange={(v) => setSortBy(v as any)} defaultValue={sortBy}>
-                  <SelectTrigger className="bg-[#21325e]/50 border-[#21325e] text-white w-full md:w-32 max-[900px]:w-full">
-                    <SelectValue>{sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : 'Market Cap'}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white">
-                    <SelectItem
-                      value="newest"
-                      className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
-                    >
-                      Newest
-                    </SelectItem>
-                    <SelectItem
-                      value="oldest"
-                      className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
-                    >
-                      Oldest
-                    </SelectItem>
-                    <SelectItem
-                      value="market-cap"
-                      className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
-                    >
-                      Market Cap
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Sort dropdown - Full width on mobile */}
+                <div className="max-[900px]:w-full">
+                  <Select onValueChange={(v) => setSortBy(v as any)} defaultValue={sortBy}>
+                    <SelectTrigger className="bg-[#21325e]/50 border-[#21325e] text-white w-full">
+                      <SelectValue>
+                        {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : 'Market Cap'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white">
+                      <SelectItem
+                        value="newest"
+                        className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                      >
+                        Newest
+                      </SelectItem>
+                      <SelectItem
+                        value="oldest"
+                        className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                      >
+                        Oldest
+                      </SelectItem>
+                      <SelectItem
+                        value="market-cap"
+                        className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                      >
+                        Market Cap
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
-            {/* Search bar*/}
+            {/* Search bar - Full width always */}
             <div className="mt-2 mb-6 w-full">
               <div className="relative w-full">
                 <Input
@@ -687,7 +679,7 @@ export default function Component() {
                             )}
                             {launch.creatorPreBuys && (
                               <span className="bg-yellow-500/20 text-yellow-500 text-xs px-2 py-1 rounded">
-                                Creator Bought
+                                Creator Buy
                               </span>
                             )}
                           </div>
@@ -703,12 +695,9 @@ export default function Component() {
                               />
                             </div>
                           </div>
-                          <div className="flex items-center justify-between p-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
-                            <div className="flex flex-col items-end max-[400px]:items-center">
-                              <div className="text-sm text-white/60 mb-1">{statusLabel}</div>
-                              <CountdownTimer endTime={launch.endTime} />
-                            </div>
-                            <div className="flex space-x-2 max-[400px]:justify-center max-[400px]:space-x-2">
+                          <div className="flex items-center justify-between p-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">  
+                            {/* Social links - will appear second on mobile */}
+                            <div className="flex space-x-2 max-[400px]:justify-center max-[400px]:space-x-2 max-[400px]:mt-2 max-[400px]:order-2">
                               {/* ─── Social Links (always show icons, enable only when URL exists) ─── */}
                               <div className="flex space-x-2">
                                 {/** Website **/}
@@ -735,14 +724,12 @@ export default function Component() {
                                     rel="noopener noreferrer"
                                     className="p-1 rounded-full text-[#19c0f4] hover:bg-[#19c0f4]/10 transition-colors"
                                   >
-                                    {/* your Telegram SVG */}
                                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                                       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
                                     </svg>
                                   </a>
                                 ) : (
                                   <span className="p-1 rounded-full text-white/40 cursor-not-allowed">
-                                    {/* your Telegram SVG */}
                                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                                       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
                                     </svg>
@@ -757,20 +744,23 @@ export default function Component() {
                                     rel="noopener noreferrer"
                                     className="p-1 rounded-full text-[#19c0f4] hover:bg-[#19c0f4]/10 transition-colors"
                                   >
-                                    {/* your Twitter SVG */}
                                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                     </svg>
                                   </a>
                                 ) : (
                                   <span className="p-1 rounded-full text-white/40 cursor-not-allowed">
-                                    {/* your Twitter SVG */}
                                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                     </svg>
                                   </span>
                                 )}
                               </div>
+                            </div>
+                            {/* Timer section - will appear first on mobile */}
+                            <div className="flex flex-col items-end max-[400px]:items-center max-[400px]:order-1">
+                              <div className="text-sm text-white/60 mb-1">{statusLabel}</div>
+                              <CountdownTimer endTime={launch.endTime} />
                             </div>
                           </div>
                         </CardContent>

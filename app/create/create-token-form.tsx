@@ -426,6 +426,12 @@ export default function CreateTokenForm() {
     websiteLink,
   ])
 
+  const formatSymbol = (raw: string) => {
+    return raw
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase()
+  }
+
   return (
     <div className="min-h-screen bg-[#0b152f] flex flex-col">
       {/* ─── GLOBAL DRAG OVERLAY ──────────────────────────────────────────── */}
@@ -458,7 +464,9 @@ export default function CreateTokenForm() {
                 <Input
                   placeholder="Symbol"
                   value={symbol}
-                  onChange={(e) => setSymbol(e.target.value)}
+                  onChange={(e) => {
+                    setSymbol(formatSymbol(e.target.value))
+                  }}
                   maxLength={10}
                   className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#19c0f4]"
                 />
