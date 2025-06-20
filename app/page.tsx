@@ -150,8 +150,7 @@ export default function Component() {
   // 1) Apply tag-toggles (we’ll assume you’ve added those three pieces of state)
   let working = launches.filter(l => {
     if (!showCreator && l.creatorPreBuys) return false
-    if (!l.isRefundable && !showNonRefundable) return false
-    if ( l.isRefundable &&  showNonRefundable ) return false
+    if (!showNonRefundable && !l.isRefundable) return false
     if (!showLPs && l.claimLP) return false
     return true
   })
@@ -550,7 +549,9 @@ export default function Component() {
                   </SelectContent>
                 </Select>
               </div>
-              {/* Search bar */}
+            </div>
+
+            {/* Search bar */}
               <div className="mt-4 w-full md:w-80 relative">
                 <Input
                   placeholder="Search for Coins"
@@ -562,7 +563,6 @@ export default function Component() {
                   <Search className="w-4 h-4" />
                 </Button>
               </div>
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {staticLoading ? (
