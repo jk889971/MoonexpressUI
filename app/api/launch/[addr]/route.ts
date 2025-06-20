@@ -1,7 +1,4 @@
-/**
- * GET /api/launch/[launchAddr] – returns the row we inserted from /api/launch POST
- * NOTE: launchAddr === the launch-proxy address.
- */
+//api/launch/[addr]/route.ts
 export async function GET(
   _req: Request,
   { params }: { params: { addr: string } }

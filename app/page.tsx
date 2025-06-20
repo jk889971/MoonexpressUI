@@ -460,8 +460,8 @@ export default function Component() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {staticLoading || dynamicLoading ? (
-                Array.from({ length: 6 }).map((_, index) => (
+              {staticLoading ? (
+                Array.from({ length: 12 }).map((_, index) => (
                   <Card key={index} className="bg-[#21325e]/30 border-[#21325e] h-64 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#19c0f4]"></div>
                   </Card>
@@ -552,7 +552,7 @@ export default function Component() {
                           </div>
                           
                           {/* Tags */}
-                          <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1 max-[400px]:text-center">
+                          <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1 justify-start max-[400px]:justify-center">
                             {launch.isRefundable ? (
                               <span className="bg-[#19c0f4]/20 text-[#19c0f4] text-xs px-2 py-1 rounded">
                                 Refundable
@@ -591,40 +591,68 @@ export default function Component() {
                           </div>
                           <div className="flex items-center justify-between p-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
                             <div className="flex space-x-2 max-[400px]:justify-center max-[400px]:space-x-2">
-                              {launch.websiteUrl && (
-                                <a 
-                                  href={launch.websiteUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300"
-                                >
-                                  <Globe className="w-4 h-4" />
-                                </a>
-                              )}
-                              {launch.telegramUrl && (
-                                <a 
-                                  href={launch.telegramUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300"
-                                >
-                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                                  </svg>
-                                </a>
-                              )}
-                              {launch.twitterUrl && (
-                                <a 
-                                  href={launch.twitterUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-[#19c0f4] hover:bg-[#19c0f4]/10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300"
-                                >
-                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                                  </svg>
-                                </a>
-                              )}
+                              {/* ─── Social Links (always show icons, enable only when URL exists) ─── */}
+                              <div className="flex space-x-2">
+                                {/** Website **/}
+                                {launch.websiteUrl ? (
+                                  <a
+                                    href={launch.websiteUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 rounded-full text-[#19c0f4] hover:bg-[#19c0f4]/10 transition-colors"
+                                  >
+                                    <Globe className="w-4 h-4" />
+                                  </a>
+                                ) : (
+                                  <span className="p-1 rounded-full text-white/40 cursor-not-allowed">
+                                    <Globe className="w-4 h-4" />
+                                  </span>
+                                )}
+
+                                {/** Telegram **/}
+                                {launch.telegramUrl ? (
+                                  <a
+                                    href={launch.telegramUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 rounded-full text-[#19c0f4] hover:bg-[#19c0f4]/10 transition-colors"
+                                  >
+                                    {/* your Telegram SVG */}
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                                    </svg>
+                                  </a>
+                                ) : (
+                                  <span className="p-1 rounded-full text-white/40 cursor-not-allowed">
+                                    {/* your Telegram SVG */}
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                                    </svg>
+                                  </span>
+                                )}
+
+                                {/** Twitter **/}
+                                {launch.twitterUrl ? (
+                                  <a
+                                    href={launch.twitterUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 rounded-full text-[#19c0f4] hover:bg-[#19c0f4]/10 transition-colors"
+                                  >
+                                    {/* your Twitter SVG */}
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                    </svg>
+                                  </a>
+                                ) : (
+                                  <span className="p-1 rounded-full text-white/40 cursor-not-allowed">
+                                    {/* your Twitter SVG */}
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                    </svg>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <div className="flex flex-col items-end max-[400px]:items-center">
                               <div className="text-sm text-white/60 mb-1">{statusLabel}</div>
