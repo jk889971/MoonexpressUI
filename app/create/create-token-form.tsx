@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,7 +19,7 @@ import {
   useBalance,
   usePublicClient,
 } from 'wagmi'
-import { parseEther, formatEther, decodeEventLog } from "viem"
+import { parseEther, formatEther, decodeEventLog, encodeEventTopics } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
 import launchAbi from "@/lib/abis/CurveLaunch.json"
@@ -53,6 +53,11 @@ export default function CreateTokenForm() {
   // Modal visibility
   const [showModal, setShowModal] = useState<boolean>(false)
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false)
+
+  const [tokensBoughtTopic] = useMemo(
+    () => encodeEventTopics({ abi: launchAbi, eventName: 'TokensBought' }),
+    []
+  )
 
   // File‐input ref
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -371,20 +376,20 @@ export default function CreateTokenForm() {
             address:   launchAddr,
             fromBlock: receipt.blockNumber,
             toBlock:   receipt.blockNumber,
+            topics:    [tokensBoughtTopic],
           })
 
           if (logs.length > 0) {
-          // decode the very first TokensBought
-          const decoded = decodeEventLog({
+          const { args } = decodeEventLog({
             abi:    launchAbi,
             data:   logs[0].data,
             topics: logs[0].topics,
             strict: true,
           })
 
-          const buyer       = (decoded.args.buyer       as string).toLowerCase()
-          const bnbSpent    = formatEther(decoded.args.bnbSpent    as bigint)
-          const tokenAmount = formatEther(decoded.args.tokenAmount as bigint)
+                  const buyer       = (args.buyer as string).toLowerCase()
+          const bnbSpent    = formatEther(args.bnbSpent as bigint)
+          const tokenAmount = formatEther(args.tokenAmount as bigint)
           const txHash      = logs[0].transactionHash
 
           await fetch(`/api/trades/${launchAddr}`, {
