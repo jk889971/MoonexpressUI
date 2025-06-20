@@ -307,7 +307,7 @@ export default function Component() {
   }
 
   return (
-    <div className="h-screen bg-[#000025] text-white relative overflow-y-auto">
+    <div className="min-h-screen bg-[#000025] text-white relative overflow-y-auto">
       <canvas
         ref={starfieldRef}
         className="fixed inset-0 z-0 w-screen h-screen pointer-events-none select-none"
