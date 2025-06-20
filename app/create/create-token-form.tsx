@@ -324,24 +324,34 @@ export default function CreateTokenForm() {
   const [deployBlock,  setDeployBlock]    = useState<string>();
 
   useEffect(() => {
-    if (isSuccess && receipt?.transactionHash && predictedToken) {
-      // 1) Supabase launch-info (unchanged)
-      setNewTokenAddr(predictedToken)
-      setDeployBlock(receipt.blockNumber!.toString())
+    if (!isSuccess || !receipt?.transactionHash || !predictedToken || !predictedLaunch) {
+      return
+    }
+
+    (async () => {
+      const launchAddr = predictedLaunch.toLowerCase()
+      const tokenAddr  = predictedToken.toLowerCase()
       const deployBlock = receipt.blockNumber.toString()
-      fetch("/api/launch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          launchAddr:    predictedLaunch?.toLowerCase(),
-          tokenAddr:     predictedToken.toLowerCase(),
-          description,
-          twitter:       twitterLink || null,
-          telegram:      telegramLink || null,
-          website:       websiteLink  || null,
-          deployBlock,
-        }),
-      }).catch(console.error)
+
+      // 1) Persist launch info and wait for it to complete
+      try {
+        await fetch("/api/launch", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            launchAddr,
+            tokenAddr,
+            description,
+            twitter:  twitterLink  || null,
+            telegram: telegramLink || null,
+            website:  websiteLink  || null,
+            deployBlock,
+          }),
+        })
+      } catch (err) {
+        console.error("Failed to persist launch info:", err)
+        // you might want to bail here if the launch insert fails
+      }
 
       // 2) Only if the user actually pre-bought something
       if (Number(preBuyAmount) > 0) {
@@ -369,9 +379,8 @@ export default function CreateTokenForm() {
         const bnbAmount   = Number(bnbSpentWei) / 1e18
         const tokenAmount = Number(tokenAmtWei) / 1e18
 
-        const realLaunchAddr = predictedLaunch?.toLowerCase()
-        if (realLaunchAddr) {
-          fetch(`/api/trades/${realLaunchAddr}`, {
+        try {
+          await fetch(`/api/trades/${launchAddr}`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -381,23 +390,26 @@ export default function CreateTokenForm() {
               tokenAmount: tokenAmount.toString(),
               txHash:      receipt.transactionHash,
             }),
-          }).catch(console.error)
+          })
+        } catch (err) {
+          console.error("Failed to persist trade:", err)
         }
-      }  // ← closes `if (Number(preBuyAmount) > 0)`
+      }
 
       // 3) Finally show your success modal
       setShowSuccessModal(true)
-    }
+    })()
   }, [
     isSuccess,
     receipt,
+    predictedLaunch,
     predictedToken,
     preBuyAmount,
     twitterLink,
     telegramLink,
     websiteLink,
     description,
-    predictedLaunch,
+    address,
   ])
 
   return (
