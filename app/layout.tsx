@@ -50,7 +50,7 @@ export default function RootLayout({
         <Providers>
           <SiteNavbar />
 
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <main className="flex-1">{children}</main>
 
           <SiteFooter />
         </Providers>

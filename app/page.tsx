@@ -307,7 +307,7 @@ export default function Component() {
   }
 
   return (
-    <div className="min-h-screen bg-[#000025] text-white relative overflow-y-auto">
+    <div className="h-screen bg-[#000025] text-white relative overflow-y-auto">
       <canvas
         ref={starfieldRef}
         className="fixed inset-0 z-0 w-screen h-screen pointer-events-none select-none"
@@ -450,7 +450,7 @@ export default function Component() {
                 </div>
 
                 {/* Toggles */}
-                <div className="mt-3 flex flex-wrap items-center space-x-6 justify-center md:justify-start">
+                <div className="mt-2 flex flex-wrap items-center space-x-6 justify-center md:justify-start">
                   {/* Creator Bought */}
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Creator Bought</span>
