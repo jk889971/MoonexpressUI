@@ -1,15 +1,9 @@
 //app/api/launch-dynamic/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import launchAbi from '@/lib/abis/CurveLaunch.json'
 import { createPublicClient, http } from 'viem'
 import { bscTestnet } from '@/lib/chain'
 import { PrismaClient } from '@prisma/client'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_KEY!
-)
 
 // Initialize Prisma client
 const prisma = new PrismaClient()

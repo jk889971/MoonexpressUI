@@ -18,15 +18,23 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
     }
   )
 
+  const { data: launchInfo = {}, error: launchError } = useSWR(
+    launchAddress ? ['/api/launch-dynamic', launchAddress] : null,
+    async ([url, addr]) => {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ launchAddresses: [addr] }),
+      });
+      if (!res.ok) throw new Error('Failed to fetch launch info');
+      const data = await res.json();
+      return data[0]; // first item
+    },
+    { refreshInterval: 0 }
+  );
+
   const truncate = (str: string, start = 6, end = 4) =>
     `${str.slice(0, start)}...${str.slice(-end)}`
-
-  const formatDateUTC = (iso: string) => {
-    const d = new Date(iso)
-    const [date, rest] = d.toISOString().split("T")
-    const time = rest.split(".")[0]
-    return `${date} ${time} UTC`
-  }
 
   const abbreviate = (num: number) => {
     if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, "") + "B"
@@ -65,8 +73,14 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
             </tr>
           </thead>
           <tbody>
-            {rows.map((r: any) => (
-              <tr key={r.txHash} className="border-b border-[#21325e]/50">
+            {rows.map((r: any, i: number) => (
+            <tr
+              key={r.txHash}
+              className={`
+                border-b border-[#21325e]/50
+                ${launchInfo.creatorPreBuys && i === 0 ? 'bg-yellow-500/20' : ''}
+              `}
+            >
                 <td
                     className="py-3 px-4"
                     style={{

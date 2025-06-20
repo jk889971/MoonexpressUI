@@ -127,25 +127,27 @@ export default function Component() {
     if (dynamicError) console.error('Dynamic data error:', dynamicError);
   }, [staticLaunches, dynamicData, dynamicError]);
 
-  // Fix 5: Add safe access to dynamic properties
-  const launches = staticLaunchesArray.map((staticLaunch: any) => {
-    const dynamic = dynamicData.find(
-      (d: any) => d.launchAddress === staticLaunch.launchAddress
-    ) || {};
-    
+  // New—only overwrite defined fields
+  const launches = staticLaunchesArray.map(staticLaunch => {
+    const dynamic = dynamicData.find(d => d.launchAddress === staticLaunch.launchAddress)
     return {
       ...staticLaunch,
-      ...dynamic,
-      // Safely handle potentially undefined values
+      marketCapUSD: dynamic?.marketCapUSD  ?? staticLaunch.marketCapUSD,
+      endTime:      dynamic?.endTime       ?? staticLaunch.endTime,
+      isRefundable: dynamic?.isRefundable  ?? staticLaunch.isRefundable,
+      finalized:    dynamic?.finalized     ?? staticLaunch.finalized,
+      lpFailed:     dynamic?.lpFailed      ?? staticLaunch.lpFailed,
+      drainMode:    dynamic?.drainMode     ?? staticLaunch.drainMode,
+      // compute status off these merged values:
       status: getTokenStatus(
-        dynamic.isRefundable || false,
-        dynamic.finalized || false,
-        dynamic.endTime || 0,
-        dynamic.lpFailed || false,
-        dynamic.drainMode || false
-      )
-    };
-  });
+        dynamic?.isRefundable  ?? staticLaunch.isRefundable,
+        dynamic?.finalized     ?? staticLaunch.finalized,
+        dynamic?.endTime       ?? staticLaunch.endTime,
+        dynamic?.lpFailed      ?? staticLaunch.lpFailed,
+        dynamic?.drainMode     ?? staticLaunch.drainMode,
+      ),
+    }
+  })
   
   // 1) Apply tag-toggles (we’ll assume you’ve added those three pieces of state)
   let working = launches.filter(l => {

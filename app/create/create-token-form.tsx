@@ -407,6 +407,9 @@ export default function CreateTokenForm() {
         }
       }
 
+      setNewTokenAddr(tokenAddr)
+      setDeployBlock(deployBlock)
+
       // 4) Finally show the success modal
       setShowSuccessModal(true)
     })()
