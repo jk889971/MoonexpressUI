@@ -476,7 +476,7 @@ export default function Component() {
                   let dotColor = "bg-green-400"   // default for Live
                   let dotGlow  = "shadow-[0_0_6px_2px_rgba(34,197,94,.8)]"
 
-                  if (launch.status === "Refunded") {
+                  if (launch.status === "Migrated") {
                     dotColor = "bg-green-800"
                     dotGlow  = ""
                   } else if (launch.status === "Failed") {
@@ -513,7 +513,7 @@ export default function Component() {
                         <CardContent className="p-0">
                           <div className="flex flex-wrap items-center p-6 mb-0 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
                             <span className={`flex-shrink-0 mb-2 h-2.5 w-2.5 rounded-full ${dotColor} ${dotGlow}`} />
-                            <span className="text-white font-semibold ml-2">
+                            <span className="text-white mb-2 font-semibold ml-2">
                               {launch.status}
                             </span>
                             <div className="flex items-center space-x-3 w-full max-[400px]:flex-col max-[400px]:space-y-2 max-[400px]:space-x-0">
@@ -524,7 +524,7 @@ export default function Component() {
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex items-center">
-                                <h3 className="font-semibold text-white text-center max-[400px]:mt-0">
+                                <h3 className="font-semibold text-white">
                                   {launch.name} (${launch.symbol})
                                 </h3>
                               </div>
