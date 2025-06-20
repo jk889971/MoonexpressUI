@@ -16,6 +16,7 @@ import {
 import { Search, Globe } from "lucide-react"
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher"
+import { GlowingCard } from "@/components/GlowingCard"
 
 // Countdown timer component
 function CountdownTimer({ endTime }: { endTime: number }) {
@@ -287,6 +288,21 @@ export default function Component() {
     return () => { active = false }
   }, [])
 
+  const [newlyAdded, setNewlyAdded] = useState<string[]>([])
+  const prevAddrs = useRef<string[]>([])
+
+  useEffect(() => {
+    const currentIds = currentLaunches.map(l => l.launchAddress)
+    // anything in currentIds but not in prevAddrs => brand-new
+    const added = currentIds.filter(id => !prevAddrs.current.includes(id))
+    if (added.length) {
+      setNewlyAdded(added)
+      // clear the glow after 3s
+      setTimeout(() => setNewlyAdded([]), 3000)
+    }
+    prevAddrs.current = currentIds
+  }, [currentLaunches])
+
   return (
     <div className="min-h-screen bg-[#000025] text-white relative overflow-y-auto">
       <canvas
@@ -472,6 +488,10 @@ export default function Component() {
                 </div>
               ) : (
                 currentLaunches.map((launch: any) => {
+
+                  const isNew = newlyAdded.includes(launch.launchAddress)
+                  return (
+                    <GlowingCard key={launch.launchAddress} isNew={isNew}>
                   
                   let dotColor = "bg-green-400"   // default for Live
                   let dotGlow  = "shadow-[0_0_6px_2px_rgba(34,197,94,.8)]"
@@ -584,7 +604,7 @@ export default function Component() {
                             </div>
                             <div className="relative w-full h-2 bg-[#0e1a38] rounded-full overflow-hidden">
                               <div 
-                                className="absolute top-0 left-0 h-full animate-pulse-bar bg-[#19c0f4]" 
+                                className="absolute top-0 left-0 h-full animate-pulse-bar bg-[#19c0f4] transition-all duration-500 ease-in-out" 
                                 style={{ width: `${launch.progress || 0}%` }} 
                               />
                             </div>
@@ -662,6 +682,8 @@ export default function Component() {
                         </CardContent>
                       </Card>
                     </div>
+                  )
+                  </GlowingCard>
                   )
                 })
               )}

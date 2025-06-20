@@ -1,6 +1,6 @@
 // app/api/launches/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";              // ← use Prisma client
+import { prisma } from "@/lib/db";
 import factoryAbi from "@/lib/abis/CurveTokenFactory.json";
 import { FACTORY_ADDRESS } from "@/lib/constants";
 import { createPublicClient, http } from "viem";
@@ -14,20 +14,20 @@ export async function GET() {
       transport: http(),
     });
 
-    const countBn = await publicClient.readContract({
+    const countBn = (await publicClient.readContract({
       address: FACTORY_ADDRESS,
       abi: factoryAbi,
       functionName: "launchesCount",
-    }) as bigint;
-    const launchesOnChain: any[] = [];
+    })) as bigint;
 
+    const launchesOnChain: any[] = [];
     for (let i = 0; i < Number(countBn); i++) {
-      const info = await publicClient.readContract({
+      const info = (await publicClient.readContract({
         address: FACTORY_ADDRESS,
         abi: factoryAbi,
         functionName: "launches",
         args: [BigInt(i)],
-      }) as any;
+      })) as any;
       launchesOnChain.push({
         index: i,
         tokenAddress: info[0],
@@ -43,22 +43,28 @@ export async function GET() {
     const metas = await prisma.launch.findMany({
       select: {
         launchAddress: true,
-        description: true,
-        twitterUrl: true,
-        telegramUrl: true,
-        websiteUrl: true,
+        description:   true,
+        twitterUrl:    true,
+        telegramUrl:   true,
+        websiteUrl:    true,
       },
     });
-    const metaMap = Object.fromEntries(metas.map(m => [m.launchAddress, m]));
+    // normalize DB addresses to lowercase for lookup
+    const metaMap = Object.fromEntries(
+      metas.map(m => [m.launchAddress.toLowerCase(), m])
+    );
 
-    // merge
-    const merged = launchesOnChain.map(lc => ({
-      ...lc,
-      description: metaMap[lc.launchAddress]?.description   || null,
-      twitterUrl:  metaMap[lc.launchAddress]?.twitterUrl    || null,
-      telegramUrl: metaMap[lc.launchAddress]?.telegramUrl   || null,
-      websiteUrl:  metaMap[lc.launchAddress]?.websiteUrl    || null,
-    }));
+    // merge on-chain + DB data
+    const merged = launchesOnChain.map(lc => {
+      const key = lc.launchAddress.toLowerCase();
+      return {
+        ...lc,
+        description: metaMap[key]?.description ?? null,
+        twitterUrl:  metaMap[key]?.twitterUrl  ?? null,
+        telegramUrl: metaMap[key]?.telegramUrl ?? null,
+        websiteUrl:  metaMap[key]?.websiteUrl  ?? null,
+      };
+    });
 
     return NextResponse.json(merged);
   } catch (e) {
