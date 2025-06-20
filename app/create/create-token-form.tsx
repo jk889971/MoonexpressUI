@@ -57,6 +57,8 @@ export default function CreateTokenForm() {
   // File‐input ref
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const didPostRef = useRef(false)
+
   //── TOAST STATE ────────────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -324,19 +326,30 @@ export default function CreateTokenForm() {
   const [deployBlock,  setDeployBlock]    = useState<string>();
 
   useEffect(() => {
-    if (!isSuccess || !receipt?.transactionHash || !predictedToken || !predictedLaunch) {
+    // only run once, right after success
+    if (
+      !isSuccess ||
+      !receipt?.transactionHash ||
+      !predictedLaunch ||
+      !predictedToken ||
+      didPostRef.current
+    ) {
       return
     }
+    didPostRef.current = true
 
     (async () => {
-      const launchAddr = predictedLaunch.toLowerCase()
-      const tokenAddr  = predictedToken.toLowerCase()
+      const launchAddr  = predictedLaunch.toLowerCase()
+      const tokenAddr   = predictedToken.toLowerCase()
       const deployBlock = receipt.blockNumber.toString()
 
-      // 1) Persist launch info and wait for it to complete
+      setNewTokenAddr(tokenAddr);
+      setDeployBlock(deployBlock);
+
+      // 1) persist launch info
       try {
         await fetch("/api/launch", {
-          method:  "POST",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             launchAddr,
@@ -349,11 +362,11 @@ export default function CreateTokenForm() {
           }),
         })
       } catch (err) {
-        console.error("Failed to persist launch info:", err)
-        // you might want to bail here if the launch insert fails
+        console.error("Launch insert failed:", err)
+        return
       }
 
-      // 2) Only if the user actually pre-bought something
+      // 2) if user pre-bought, post the trade
       if (Number(preBuyAmount) > 0) {
         let bnbSpentWei = 0n
         let tokenAmtWei = 0n
@@ -372,7 +385,7 @@ export default function CreateTokenForm() {
               break
             }
           } catch {
-            // not our event, keep looking
+            // not the right log
           }
         }
 
@@ -381,7 +394,7 @@ export default function CreateTokenForm() {
 
         try {
           await fetch(`/api/trades/${launchAddr}`, {
-            method:  "POST",
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               wallet:      address,
@@ -392,25 +405,14 @@ export default function CreateTokenForm() {
             }),
           })
         } catch (err) {
-          console.error("Failed to persist trade:", err)
+          console.error("Trade insert failed:", err)
         }
       }
 
-      // 3) Finally show your success modal
+      // 3) show the success modal
       setShowSuccessModal(true)
     })()
-  }, [
-    isSuccess,
-    receipt,
-    predictedLaunch,
-    predictedToken,
-    preBuyAmount,
-    twitterLink,
-    telegramLink,
-    websiteLink,
-    description,
-    address,
-  ])
+  }, [isSuccess, receipt, predictedLaunch, predictedToken])
 
   return (
     <div className="min-h-screen bg-[#0b152f] flex flex-col">
