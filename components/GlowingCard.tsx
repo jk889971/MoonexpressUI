@@ -9,12 +9,12 @@ interface GlowingCardProps {
 export function GlowingCard({ children, isNew = false }: GlowingCardProps) {
   return (
     <motion.div
-      initial={ isNew ? { opacity: 0, scale: 0.8 } : {} }
-      animate={ isNew ? { opacity: 1, scale: 1 } : {} }
-      transition={ isNew ? { type: "spring", stiffness: 260, damping: 20 } : {} }
+      // only animate entrance on brand-new cards
+      initial={isNew ? { opacity: 0, scale: 0.8 } : undefined}
+      animate={isNew ? { opacity: 1, scale: 1 } : undefined}
+      transition={isNew ? { type: "spring", stiffness: 260, damping: 20 } : undefined}
       className="relative"
     >
-      {/* Glow layer */}
       {isNew && (
         <motion.div
           className="absolute inset-0 rounded-2xl bg-white/20 filter blur-xl"
@@ -24,7 +24,7 @@ export function GlowingCard({ children, isNew = false }: GlowingCardProps) {
         />
       )}
 
-      {/* The actual card sits on top */}
+      {/* your regular card */}
       <Card className="relative">
         <CardContent className="p-0">
           {children}

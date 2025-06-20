@@ -297,8 +297,8 @@ export default function Component() {
     const added = currentIds.filter(id => !prevAddrs.current.includes(id))
     if (added.length) {
       setNewlyAdded(added)
-      // clear the glow after 3s
-      setTimeout(() => setNewlyAdded([]), 3000)
+      // clear the glow after 2s
+      setTimeout(() => setNewlyAdded([]), 2000)
     }
     prevAddrs.current = currentIds
   }, [currentLaunches])
@@ -490,8 +490,6 @@ export default function Component() {
                 currentLaunches.map((launch: any) => {
 
                   const isNew = newlyAdded.includes(launch.launchAddress)
-                  return (
-                    <GlowingCard key={launch.launchAddress} isNew={isNew}>
                   
                   let dotColor = "bg-green-400"   // default for Live
                   let dotGlow  = "shadow-[0_0_6px_2px_rgba(34,197,94,.8)]"
@@ -522,8 +520,8 @@ export default function Component() {
                     "Status";
                   
                   return (
-                    <div 
-                      key={launch.tokenAddress} 
+                    <GlowingCard key={launch.launchAddress} isNew={isNew}>
+                    <div
                       className="cursor-pointer" 
                       onClick={() => router.push(
                         `/token/${launch.tokenAddress}?b=${launch.deployBlock}&s=${launch.symbol}`
@@ -682,8 +680,7 @@ export default function Component() {
                         </CardContent>
                       </Card>
                     </div>
-                  )
-                  </GlowingCard>
+                    </GlowingCard>
                   )
                 })
               )}
