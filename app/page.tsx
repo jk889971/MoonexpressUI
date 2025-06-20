@@ -548,21 +548,23 @@ export default function Component() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                
-                {/* Search bar */}
-                <div className="mt-2 mb-6 w-full">
-                  <div className="relative w-full">
-                    <Input
-                      placeholder="Search for Coins"
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full bg-[#21325e]/50 border-[#21325e] text-white placeholder:text-white/50 pr-12"
-                    />
-                    <Button className="absolute right-0 top-0 bottom-0 bg-[#19c0f4] hover:bg-[#16abd9] text-white rounded-l-none transition duration-300">
-                      <Search className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+              </div>
+            </div>
+
+            {/* Search bar*/}
+            <div className="mt-2 mb-6 w-full">
+              <div className="relative w-full">
+                <Input
+                  placeholder="Search for Coins"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full bg-[#21325e]/50 border-[#21325e] text-white placeholder:text-white/50 pr-12"
+                />
+                <Button className="absolute right-0 top-0 bottom-0 bg-[#19c0f4] hover:bg-[#16abd9] text-white rounded-l-none transition duration-300">
+                  <Search className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {staticLoading ? (
