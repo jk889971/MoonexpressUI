@@ -428,7 +428,7 @@ export default function Component() {
       <div className="relative z-0">
         <section className="relative z-10 px-6 pb-16 pt-4">
           <div className="max-w-7xl mx-auto bg-[#0B152F] p-8 rounded-3xl">
-            <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 max-[400px]:items-center">
+            <div className="flex max-[900px]:flex-col max-[900px]:items-center md:flex-row items-center justify-between mb-8 gap-4 max-[400px]:items-center">
               <div className="flex items-center space-x-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-1 max-[400px]:space-x-0">
                 <span className="text-3xl font-bold">{launches.length}</span>
                 <span className="text-xl text-white/60 max-[400px]:text-center">Coins Created</span>
@@ -450,6 +450,7 @@ export default function Component() {
                     <label
                       htmlFor="toggle-creator"
                       className={`
+                        cursor-pointer
                         relative inline-flex h-6 w-12 items-center rounded-full
                         transition-colors duration-300 ease-in-out
                         ${showCreator ? "bg-[#19c0f4]" : "bg-white/30"}
@@ -478,6 +479,7 @@ export default function Component() {
                     <label
                       htmlFor="toggle-refundable"
                       className={`
+                        cursor-pointer
                         relative inline-flex h-6 w-12 items-center rounded-full
                         transition-colors duration-300 ease-in-out
                         ${showNonRefundable ? "bg-[#19c0f4]" : "bg-white/30"}
@@ -506,6 +508,7 @@ export default function Component() {
                     <label
                       htmlFor="toggle-lps"
                       className={`
+                        cursor-pointer
                         relative inline-flex h-6 w-12 items-center rounded-full
                         transition-colors duration-300 ease-in-out
                         ${showLPs ? "bg-[#19c0f4]" : "bg-white/30"}
@@ -524,7 +527,7 @@ export default function Component() {
 
                 {/** ─── Sort dropdown ─── **/}
                 <Select onValueChange={(v) => setSortBy(v as any)} defaultValue={sortBy}>
-                  <SelectTrigger className="bg-[#21325e]/50 border-[#21325e] text-white w-full md:w-32">
+                  <SelectTrigger className="bg-[#21325e]/50 border-[#21325e] text-white w-full md:w-32 max-[900px]:w-full">
                     <SelectValue>{sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : 'Market Cap'}</SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white">
