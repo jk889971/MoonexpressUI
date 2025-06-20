@@ -19,9 +19,10 @@ import {
   useBalance,
   usePublicClient,
 } from 'wagmi'
-import { parseEther, formatEther, getContractError } from "viem"
+import { parseEther, formatEther, decodeEventLog, getAbiItem } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
+import launchAbi from '@/lib/abis/CurveLaunch.json';
 
 type Toast = {
   id: number
@@ -324,33 +325,80 @@ export default function CreateTokenForm() {
 
   useEffect(() => {
     if (isSuccess && receipt?.transactionHash && predictedToken) {
+      // 1) Supabase launch-info (unchanged)
       setNewTokenAddr(predictedToken)
       setDeployBlock(receipt.blockNumber!.toString())
-
-      // NEW — persist extra fields in Supabase
-      const launchAddr =
-        receipt?.logs?.[0]?.address ?? FACTORY_ADDRESS;  // fallback
-      
       const deployBlock = receipt.blockNumber.toString()
-
-      // 2 persist to Supabase
       fetch("/api/launch", {
-        method : "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body   : JSON.stringify({
-          launchAddr: predictedLaunch?.toLowerCase(),
-          tokenAddr : predictedToken.toLowerCase(),
+        body: JSON.stringify({
+          launchAddr:    predictedLaunch?.toLowerCase(),
+          tokenAddr:     predictedToken.toLowerCase(),
           description,
-          twitter  : twitterLink || null,
-          telegram : telegramLink || null,
-          website  : websiteLink || null,
+          twitter:       twitterLink || null,
+          telegram:      telegramLink || null,
+          website:       websiteLink  || null,
           deployBlock,
         }),
       }).catch(console.error)
 
+      // 2) Only if the user actually pre-bought something
+      if (Number(preBuyAmount) > 0) {
+        let bnbSpentWei = 0n
+        let tokenAmtWei = 0n
+
+        for (const log of receipt.logs) {
+          try {
+            const decoded = decodeEventLog({
+              abi:    launchAbi,
+              data:   log.data,
+              topics: log.topics,
+              strict: true,
+            })
+            if (decoded.eventName === "TokensBought") {
+              bnbSpentWei = decoded.args.bnbSpent
+              tokenAmtWei = decoded.args.tokenAmount
+              break
+            }
+          } catch {
+            // not our event, keep looking
+          }
+        }
+
+        const bnbAmount   = Number(bnbSpentWei) / 1e18
+        const tokenAmount = Number(tokenAmtWei) / 1e18
+
+        const realLaunchAddr = predictedLaunch?.toLowerCase()
+        if (realLaunchAddr) {
+          fetch(`/api/trades/${realLaunchAddr}`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              wallet:      address,
+              type:        "Buy",
+              bnbAmount:   bnbAmount.toFixed(6),
+              tokenAmount: tokenAmount.toString(),
+              txHash:      receipt.transactionHash,
+            }),
+          }).catch(console.error)
+        }
+      }  // ← closes `if (Number(preBuyAmount) > 0)`
+
+      // 3) Finally show your success modal
       setShowSuccessModal(true)
     }
-  }, [isSuccess, receipt, predictedToken]);
+  }, [
+    isSuccess,
+    receipt,
+    predictedToken,
+    preBuyAmount,
+    twitterLink,
+    telegramLink,
+    websiteLink,
+    description,
+    predictedLaunch,
+  ])
 
   return (
     <div className="min-h-screen bg-[#0b152f] flex flex-col">

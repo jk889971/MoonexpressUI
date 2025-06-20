@@ -13,7 +13,7 @@ import {
 } from "wagmi"
 import { bscTestnet } from "@/lib/chain"
 import launchAbi from "@/lib/abis/CurveLaunch.json"
-import { encodeFunctionData } from "viem"
+import { getContractError } from "viem"
 
 export default function ClaimCard({
   launchAddress,
@@ -234,70 +234,34 @@ export default function ClaimCard({
   /* ------------------------------------------------------------------ */
   /* Click handler with immediate state refresh ----------------------- */
   /* ------------------------------------------------------------------ */
-  // Modified handleClick function
   async function handleClick() {
     if (!launchAddress || !fnName || nothingToClaim) return;
 
     try {
-      // First verify on-chain state directly before proceeding
-      const [currentBuyer, currentFinalized, currentLpFailed] = await Promise.all([
-        publicClient.readContract({
-          address: launchAddress,
-          abi: launchAbi,
-          functionName: "buyers",
-          args: [account!],
-        }),
-        publicClient.readContract({
-          address: launchAddress,
-          abi: launchAbi,
-          functionName: "finalized",
-        }),
-        publicClient.readContract({
-          address: launchAddress,
-          abi: launchAbi,
-          functionName: "lpFailed",
-        }),
-      ]);
-
-      const [currentBnbPaid, currentTokensAllocated, currentClaimed] = currentBuyer;
-      
-      // Verify again with fresh on-chain data
-      const canClaim = fnName === "claim" 
-        ? currentTokensAllocated > 0n && !currentClaimed
-        : currentBnbPaid > 0n;
-
-      if (!canClaim) {
-        console.log("Nothing to claim based on fresh on-chain check");
-        return;
-      }
-
-      // Only proceed with gas estimation if we're sure there's something to claim
-      const data = encodeFunctionData({
-        abi: launchAbi,
-        functionName: fnName,
-        args: [],
-      });
-
-      const estimated = await publicClient.estimateGas({
-        to: launchAddress,
-        data,
-        account, // Important: include the account in estimation
-      });
-
-      const gasLimit = estimated + (estimated / 5n);
-
+      // 1️⃣ Fire the claim transaction; Wagmi will estimate gas for you
       const hash = await writeContractAsync({
-        address: launchAddress,
-        abi: launchAbi,
+        address:      launchAddress,
+        abi:          launchAbi,
         functionName: fnName,
-        chainId: bscTestnet.id,
-        gasLimit,
+        chainId:      bscTestnet.id,
+        // no gasLimit field needed—Wagmi handles it
       });
 
+      // 2️⃣ Optionally wait for on-chain confirmation
+      await publicClient.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+      });
+
+      // 3️⃣ Refresh your UI state
       refetchAll();
     } catch (err: any) {
       console.error("Claim failed:", err);
-      // Optionally show a user-friendly error message
+      const contractError = getContractError(err, {
+        abi:          launchAbi,
+        functionName: fnName,
+      });
+      console.error(contractError?.shortMessage || err.message);
     }
   }
 
