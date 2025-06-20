@@ -19,18 +19,10 @@ import {
   useBalance,
   usePublicClient,
 } from 'wagmi'
-import { parseEther, formatEther } from "viem"
+import { parseEther, formatEther, decodeEventLog } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
-import { Interface } from "ethers"
 import launchAbi from "@/lib/abis/CurveLaunch.json"
-
-// Interface + topic so we can parse TokensBought logs
-const launchInterface    = new Interface(launchAbi)
-const tokensBoughtTopic  = launchInterface.getEventTopic("TokensBought")
-
-// Root URL for your API (set NEXT_PUBLIC_APP_URL in .env)
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
 type Toast = {
   id: number
@@ -354,7 +346,7 @@ export default function CreateTokenForm() {
 
       // 1) Persist the launch info
       try {
-        await fetch(`${APP_URL}/api/launch`, {
+        await fetch("/api/launch", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -379,29 +371,34 @@ export default function CreateTokenForm() {
             address:   launchAddr,
             fromBlock: receipt.blockNumber,
             toBlock:   receipt.blockNumber,
-            topics:    [tokensBoughtTopic],
           })
 
           if (logs.length > 0) {
-            const parsed = launchInterface.parseLog(logs[0])
-            const buyer       = (parsed.args.buyer as string).toLowerCase()
-            const bnbSpent    = formatEther(parsed.args.bnbSpent as bigint)
-            const tokenAmount = formatEther(parsed.args.tokenAmount as bigint)
-            const txHash      = logs[0].transactionHash
+          // decode the very first TokensBought
+          const decoded = decodeEventLog({
+            abi:    launchAbi,
+            data:   logs[0].data,
+            topics: logs[0].topics,
+            strict: true,
+          })
 
-            // 3) POST that trade to your trades API
-            await fetch(`${APP_URL}/api/trades/${launchAddr}`, {
-              method:  "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                wallet:      buyer,
-                type:        "Buy",
-                bnbAmount:   bnbSpent,
-                tokenAmount: tokenAmount,
-                txHash,
-              }),
-            })
-          }
+          const buyer       = (decoded.args.buyer       as string).toLowerCase()
+          const bnbSpent    = formatEther(decoded.args.bnbSpent    as bigint)
+          const tokenAmount = formatEther(decoded.args.tokenAmount as bigint)
+          const txHash      = logs[0].transactionHash
+
+          await fetch(`/api/trades/${launchAddr}`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              wallet:      buyer,
+              type:        "Buy",
+              bnbAmount:   bnbSpent,
+              tokenAmount: tokenAmount,
+              txHash,
+            }),
+          })
+        }
         } catch (err) {
           console.error("Trade indexing failed:", err)
         }
