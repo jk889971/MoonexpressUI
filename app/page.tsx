@@ -53,10 +53,10 @@ function CountdownTimer({ endTime }: { endTime: number }) {
   }
 
   if (timeLeft <= 0) {
-    return <div className="text-xs text-[#19c0f4] font-mono">{formatTime(timeLeft)}</div>
+    return <div className="text-sm text-[#19c0f4] font-mono">{formatTime(timeLeft)}</div>
   }
 
-  return <div className="text-xs text-[#19c0f4] font-mono">{formatTime(timeLeft)}</div>
+  return <div className="text-sm text-[#19c0f4] font-mono">{formatTime(timeLeft)}</div>
 }
 
 // Helper to get token status
@@ -512,10 +512,12 @@ export default function Component() {
                       <Card className="bg-[#21325e]/30 border-[#21325e] backdrop-blur-sm hover:bg-[#21325e]/50 transition-colors duration-300 rounded-2xl overflow-hidden">
                         <CardContent className="p-0">
                           <div className="flex flex-wrap items-center p-6 mb-0 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
-                            <span className={`flex-shrink-0 mb-2 h-2.5 w-2.5 rounded-full ${dotColor} ${dotGlow}`} />
-                            <span className="text-white mb-2 font-semibold ml-2">
-                              {launch.status}
-                            </span>
+                            <div className="flex items-center mb-2">
+                              <span className={`flex-shrink-0 h-2.5 w-2.5 rounded-full ${dotColor} ${dotGlow}`} />
+                              <span className="text-white font-semibold ml-2">
+                                {launch.status}
+                              </span>
+                            </div>
                             <div className="flex items-center space-x-3 w-full max-[400px]:flex-col max-[400px]:space-y-2 max-[400px]:space-x-0">
                               <Avatar className="w-12 h-12">
                                 <AvatarImage src={imageSrc} alt={launch.name} />
@@ -523,7 +525,7 @@ export default function Component() {
                                   {launch.symbol.slice(0, 2)}
                                 </AvatarFallback>
                               </Avatar>
-                              <div className="flex items-center">
+                              <div className="flex items-center max-[400px]:text-center">
                                 <h3 className="font-semibold text-white">
                                   {launch.name} (${launch.symbol})
                                 </h3>
@@ -534,7 +536,7 @@ export default function Component() {
                           <div className="bg-[#21325e]/50 p-4 mx-4 rounded-xl">
                             <div className="grid grid-cols-2 gap-4 text-center max-[400px]:grid-cols-1 max-[400px]:gap-y-2">
                               <div>
-                                <div className="text-xs text-white/60 mb-1">Market cap</div>
+                                <div className="text-sm text-white/60 mb-1">Market cap</div>
                                 <div className="font-semibold text-white">
                                   ${(launch.marketCapUSD || 0 ).toLocaleString(undefined, {
                                     minimumFractionDigits: 2,
@@ -543,14 +545,14 @@ export default function Component() {
                                 </div>
                               </div>
                               <div>
-                                <div className="text-xs text-white/60 mb-1">Replies</div>
+                                <div className="text-sm text-white/60 mb-1">Replies</div>
                                 <div className="font-semibold text-white">{launch.repliesCount || 0}</div>
                               </div>
                             </div>
                           </div>
                           
                           {/* Tags */}
-                          <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1">
+                          <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1 max-[400px]:text-center">
                             {launch.isRefundable ? (
                               <span className="bg-[#19c0f4]/20 text-[#19c0f4] text-xs px-2 py-1 rounded">
                                 Refundable
@@ -625,7 +627,7 @@ export default function Component() {
                               )}
                             </div>
                             <div className="flex flex-col items-end max-[400px]:items-center">
-                              <div className="text-xs text-white/60 mb-1">{statusLabel}</div>
+                              <div className="text-sm text-white/60 mb-1">{statusLabel}</div>
                               <CountdownTimer endTime={launch.endTime} />
                             </div>
                           </div>
