@@ -494,7 +494,7 @@ export default function Component() {
                   
                   // Determine status label
                   const statusLabel = 
-                    launch.status === "Live" ? "Refunds in" : 
+                    launch.status === "Live" && launch.isRefundable ? "Refunds in" : 
                     launch.status === "Live" && !launch.isRefundable ? "Sells unlocking in" : 
                     launch.status === "Failed" ? "Failed" : 
                     launch.status === "Refunded" ? "Refunds available" : 
@@ -516,7 +516,7 @@ export default function Component() {
                             <span className="text-white font-semibold ml-2">
                               {launch.status}
                             </span>
-                            <div className="flex items-center space-x-3 max-[400px]:flex-col max-[400px]:space-y-2 max-[400px]:space-x-0">
+                            <div className="flex items-center space-x-3 w-full max-[400px]:flex-col max-[400px]:space-y-2 max-[400px]:space-x-0">
                               <Avatar className="w-12 h-12">
                                 <AvatarImage src={imageSrc} alt={launch.name} />
                                 <AvatarFallback className="bg-[#ffbb69] text-[#000025]">
