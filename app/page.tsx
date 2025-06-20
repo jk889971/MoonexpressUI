@@ -450,15 +450,15 @@ export default function Component() {
                 </div>
 
                 {/* Toggles */}
-                <div className="mt-4 flex flex-wrap items-center space-x-6 justify-center md:justify-start">
+                <div className="mt-3 flex flex-wrap items-center space-x-6 justify-center md:justify-start">
                   {/* Creator Bought */}
-                  <div className="flex items-center space-x-2 flex-row-reverse">
+                  <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Creator Bought</span>
                     <input
                       id="toggle-creator"
                       type="checkbox"
                       checked={showCreator}
-                      onChange={() => setShowCreator((v) => !v)}
+                      onChange={() => setShowCreator(v => !v)}
                       className="sr-only"
                     />
                     <label
@@ -480,13 +480,13 @@ export default function Component() {
                   </div>
 
                   {/* Refundable */}
-                  <div className="flex items-center space-x-2 flex-row-reverse">
+                  <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Refundable</span>
                     <input
                       id="toggle-refundable"
                       type="checkbox"
                       checked={showRefundable}
-                      onChange={() => setShowRefundable((v) => !v)}
+                      onChange={() => setShowRefundable(v => !v)}
                       className="sr-only"
                     />
                     <label
@@ -508,13 +508,13 @@ export default function Component() {
                   </div>
 
                   {/* LPs */}
-                  <div className="flex items-center space-x-2 flex-row-reverse">
+                  <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">LPs</span>
                     <input
                       id="toggle-lps"
                       type="checkbox"
                       checked={showLPs}
-                      onChange={() => setShowLPs((v) => !v)}
+                      onChange={() => setShowLPs(v => !v)}
                       className="sr-only"
                     />
                     <label
