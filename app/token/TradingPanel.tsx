@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient } from "wagmi";
 import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json";
-import { parseEther, parseUnits, encodeFunctionData, getContractError } from "viem";
+import { parseEther, parseUnits, getContractError, decodeEventLog, getAbiItem } from "viem";
 import { bscTestnet } from "@/lib/chain";
 
 interface TradingPanelProps {
@@ -128,72 +128,62 @@ export default function TradingPanel({
   async function handleBuy() {
     if (!isValidPositiveNumber(amount)) return;
 
-    // ─── inline buyer‐delta logic ───
-    const before = await publicClient.readContract({
-      address: launchAddress,
-      abi: launchAbi,
-      functionName: "buyers",
-      args: [wallet!],
-    }) as readonly [bigint, bigint, boolean];
-
-    const value = parseEther(amount);             // BNB → wei
-    // 1️⃣ encode the buy() call
-    const data = encodeFunctionData({
-      abi: launchAbi,
-      functionName: "buy",
-      args: [],
-    });
-
-    // 2️⃣ estimate gas on-chain
-    const estimated = await publicClient.estimateGas({
-      to: launchAddress,
-      data,
-      value,
-    });
-
-    // 3️⃣ add a 20% buffer
-    const gasLimit = estimated + estimated / 5n;
-
-    // 4️⃣ send the tx with your manual gasLimit
+    // 1️⃣ Send buy()
     const hash = await writeContractAsync({
-      address: launchAddress,
-      abi: launchAbi,
+      address:      launchAddress,
+      abi:          launchAbi,
       functionName: "buy",
-      chainId: bscTestnet.id,
-      value,
-      gasLimit,
+      chainId:      bscTestnet.id,
+      value:        parseEther(amount),
     });
 
-    setAmount("");
-    setSelectedPercentage("");
+    // 2️⃣ Wait and grab receipt
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash,
+      confirmations: 1,
+    });
 
-    // wait for 1 confirmation…
-    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+    // 3️⃣ Find & decode the TokensBought event
+    const eventDef = getAbiItem({ abi: launchAbi, name: "TokensBought" });
+    let bnbSpentWei = 0n, tokenAmountWei = 0n;
+    for (const log of receipt.logs) {
+      try {
+        const decoded = decodeEventLog({
+          abi:    launchAbi,
+          data:   log.data,
+          topics: log.topics,
+          strict: true,
+        });
+        if (decoded.eventName === "TokensBought") {
+          bnbSpentWei     = decoded.args.bnbSpent;
+          tokenAmountWei  = decoded.args.tokenAmount;
+          break;
+        }
+      } catch {
+        // not our event
+      }
+    }
 
-    // re‐read AFTER
-    const after = await publicClient.readContract({
-      address: launchAddress,
-      abi: launchAbi,
-      functionName: "buyers",
-      args: [wallet!],
-    }) as readonly [bigint, bigint, boolean];
+    // 4️⃣ Convert to human units
+    const bnbAmount   = Number(bnbSpentWei)    / 1e18;
+    const tokenAmount = Number(tokenAmountWei) / 1e18;
 
-    const tokensBought    = Number(after[1] - before[1]) / 1e18;
-    const bnbActuallyPaid = Number(after[0] - before[0]) / 1e18;
-
-    // ─── POST to your DB ───
+    // 5️⃣ Persist
     await fetch(`/api/trades/${launchAddress}`, {
-      method:  "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({
+      body: JSON.stringify({
         wallet,
         type:        "Buy",
-        bnbAmount:   bnbActuallyPaid.toFixed(6),
-        tokenAmount: tokensBought.toString(),
+        bnbAmount:   bnbAmount.toFixed(6),
+        tokenAmount: tokenAmount.toString(),
         txHash:      hash,
       }),
     });
 
+    // 6️⃣ Cleanup & refetch UI
+    setAmount("");
+    setSelectedPercentage("");
     await refetchBal();
   }
 
@@ -201,99 +191,70 @@ export default function TradingPanel({
     if (!canSellNow || !amount || !wallet) return;
 
     try {
-      // ─── inline buyer‐delta logic ───
+      // 1️⃣ Take a “before” snapshot of buyer state
       const before = await publicClient.readContract({
-        address: launchAddress,
-        abi: launchAbi,
+        address:      launchAddress,
+        abi:          launchAbi,
         functionName: "buyers",
-        args: [wallet!],
+        args:         [wallet],
       }) as readonly [bigint, bigint, boolean];
-      // 1. Convert and validate amount
+
+      // 2️⃣ Validate
       const sellAmount = Math.floor(Number(amount));
-      if (sellAmount <= 0 || isNaN(sellAmount)) {
-        console.error("Invalid sell amount");
-        return;
-      }
+      if (sellAmount <= 0 || isNaN(sellAmount)) return;
 
-      // 2. Get buyer data
-      const buyerData = await publicClient.readContract({
-        address: launchAddress,
-        abi: [
-          {
-            inputs: [{ name: '', type: 'address' }],
-            name: 'buyers',
-            outputs: [
-              { name: 'bnbPaid', type: 'uint256' },
-              { name: 'tokensAllocated', type: 'uint256' },
-              { name: 'claimed', type: 'bool' },
-            ],
-            stateMutability: 'view',
-            type: 'function',
-          },
-        ],
-        functionName: 'buyers',
-        args: [wallet],
-      });
-
-      // 3. Verify allocation
-      const allocatedTokens = Number(buyerData[1]) / 1e18;
+      const allocatedTokens = Number(before[1]) / 1e18;
       if (sellAmount > allocatedTokens) {
-        console.error("Cannot sell more than allocated");
+        console.error("Too many tokens");
         return;
       }
 
-      // 4. Prepare transaction
+      // 3️⃣ Fire sellTokens()
       const tokenAmt = parseUnits(sellAmount.toString(), 18);
-      
-      // 5. Encode the sell call
-      const data = encodeFunctionData({
-        abi: launchAbi,
-        functionName: "sellTokens",
-        args: [tokenAmt],
-      });
-
-      // 6. Estimate gas with buffer (like in handleBuy)
-      const estimated = await publicClient.estimateGas({
-        to: launchAddress,
-        data,
-        account: wallet,
-      });
-
-      // Add 20% buffer (same as buy)
-      const gasLimit = estimated + (estimated / 5n);
-
-      // 7. Execute transaction with proper gas
       const hash = await writeContractAsync({
-        address: launchAddress,
-        abi: launchAbi,
+        address:      launchAddress,
+        abi:          launchAbi,
         functionName: "sellTokens",
-        args: [tokenAmt],
-        chainId: bscTestnet.id,
-        gas: gasLimit, // Use the calculated gas limit
+        args:         [tokenAmt],
+        chainId:      bscTestnet.id,
       });
 
-      // Reset UI
-      setAmount("");
-      setSelectedPercentage("");
+      // 4️⃣ Wait receipt
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+      });
 
-      // Wait for confirmation
-      await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+      // 5️⃣ Decode TokensSold event
+      const eventDef = getAbiItem({ abi: launchAbi, name: "TokensSold" });
+      let grossReturnWei = 0n, userGetsWei = 0n;
+      for (const log of receipt.logs) {
+        try {
+          const decoded = decodeEventLog({
+            abi:    launchAbi,
+            data:   log.data,
+            topics: log.topics,
+            strict: true,
+          });
+          if (decoded.eventName === "TokensSold") {
+            grossReturnWei = decoded.args.grossReturn;
+            userGetsWei    = decoded.args.userGets;
+            break;
+          }
+        } catch {
+          // skip
+        }
+      }
 
-      // re‐read AFTER
-      const after = await publicClient.readContract({
-        address: launchAddress,
-        abi: launchAbi,
-        functionName: "buyers",
-        args: [wallet!],
-      }) as readonly [bigint, bigint, boolean];
+      // 6️⃣ Convert to human
+      const bnbReceived   = Number(userGetsWei)    / 1e18;
+      const tokensSold    = sellAmount;             // integer
 
-      const bnbReceived = (Number(before[0]) - Number(after[0])) / 1e18;
-      const tokensSold  = Number(amount);
-
+      // 7️⃣ Persist
       await fetch(`/api/trades/${launchAddress}`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
+        body: JSON.stringify({
           wallet,
           type:        "Sell",
           bnbAmount:   bnbReceived.toFixed(6),
@@ -302,22 +263,19 @@ export default function TradingPanel({
         }),
       });
 
+      // 8️⃣ Cleanup & refetch
+      setAmount("");
+      setSelectedPercentage("");
       await refetchBal();
       await refetchBuyer();
 
     } catch (error: any) {
       console.error("Sell error:", error);
-      
       const contractError = getContractError(error, {
-        abi: launchAbi,
-        functionName: 'sellTokens'
+        abi:           launchAbi,
+        functionName:  "sellTokens",
       });
-      
-      if (contractError) {
-        console.error("Contract error:", contractError.shortMessage);
-      } else {
-        console.error("Transaction error:", error.shortMessage || error.message);
-      }
+      console.error(contractError?.shortMessage || error.message);
     }
   }
 
