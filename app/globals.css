@@ -250,7 +250,7 @@ body {
   transform: translateY(calc(var(--digit) * -1em));
 }
 
-html,body{height:100%}
+
 body{overflow-y:auto}
 html[data-radix-scroll-lock]{
   overflow:hidden!important;
