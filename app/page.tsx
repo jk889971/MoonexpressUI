@@ -93,7 +93,7 @@ export default function Component() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "market-cap">("newest")
   const [showCreator, setShowCreator] = useState(true)
-  const [showRefundable, setShowRefundable] = useState(true)
+  const [showNonRefundable, setShowNonRefundable] = useState(false)
   const [showLPs, setShowLPs] = useState(true)
   const starfieldRef = useRef<HTMLCanvasElement | null>(null);
   
@@ -127,32 +127,31 @@ export default function Component() {
     if (dynamicError) console.error('Dynamic data error:', dynamicError);
   }, [staticLaunches, dynamicData, dynamicError]);
 
-  // New—only overwrite defined fields
-  const launches = staticLaunchesArray.map(staticLaunch => {
-    const dynamic = dynamicData.find(d => d.launchAddress === staticLaunch.launchAddress)
+  // Fix 5: Add safe access to dynamic properties
+  const launches = staticLaunchesArray.map((staticLaunch: any) => {
+    const dynamic = dynamicData.find(
+      (d: any) => d.launchAddress === staticLaunch.launchAddress
+    ) || {};
+    
     return {
       ...staticLaunch,
-      marketCapUSD: dynamic?.marketCapUSD  ?? staticLaunch.marketCapUSD,
-      endTime:      dynamic?.endTime       ?? staticLaunch.endTime,
-      isRefundable: dynamic?.isRefundable  ?? staticLaunch.isRefundable,
-      finalized:    dynamic?.finalized     ?? staticLaunch.finalized,
-      lpFailed:     dynamic?.lpFailed      ?? staticLaunch.lpFailed,
-      drainMode:    dynamic?.drainMode     ?? staticLaunch.drainMode,
-      // compute status off these merged values:
+      ...dynamic,
+      // Safely handle potentially undefined values
       status: getTokenStatus(
-        dynamic?.isRefundable  ?? staticLaunch.isRefundable,
-        dynamic?.finalized     ?? staticLaunch.finalized,
-        dynamic?.endTime       ?? staticLaunch.endTime,
-        dynamic?.lpFailed      ?? staticLaunch.lpFailed,
-        dynamic?.drainMode     ?? staticLaunch.drainMode,
-      ),
-    }
-  })
+        dynamic.isRefundable || false,
+        dynamic.finalized || false,
+        dynamic.endTime || 0,
+        dynamic.lpFailed || false,
+        dynamic.drainMode || false
+      )
+    };
+  });
   
   // 1) Apply tag-toggles (we’ll assume you’ve added those three pieces of state)
   let working = launches.filter(l => {
     if (!showCreator && l.creatorPreBuys) return false
-    if (!showRefundable && l.isRefundable) return false
+    if (!l.isRefundable && !showNonRefundable) return false
+    if ( l.isRefundable &&  showNonRefundable ) return false
     if (!showLPs && l.claimLP) return false
     return true
   })
@@ -173,7 +172,7 @@ export default function Component() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, sortBy, showCreator, showRefundable, showLPs])
+  }, [searchQuery, sortBy, showCreator, showNonRefundable, showLPs])
 
   // 3) Then apply your text-search filter
   const filteredAndSorted = working.filter(l =>
@@ -436,22 +435,9 @@ export default function Component() {
                 <span className="text-xl text-white/60 max-[400px]:text-center">Coins Created</span>
               </div>
 
-              <div className="flex items-center space-x-4 w-full md:w-auto max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">
-                {/** ─── Search field ─── **/}
-                <div className="relative w-full md:w-80">
-                  <Input
-                    placeholder="Search for Coins"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-[#21325e]/50 border-[#21325e] text-white placeholder:text-white/50 pr-12 w-full"
-                  />
-                  <Button className="absolute right-0 top-0 bottom-0 bg-[#19c0f4] hover:bg-[#16abd9] text-white rounded-l-none hover:brightness-110 transition-all duration-300">
-                    <Search className="w-4 h-4" />
-                  </Button>
-                </div>
-
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 {/* Toggles */}
-                <div className="mt-2 flex flex-wrap items-center space-x-6 justify-center md:justify-start">
+                <div className="flex items-center space-x-6">
                   {/* Creator Bought */}
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Creator Bought</span>
@@ -482,12 +468,12 @@ export default function Component() {
 
                   {/* Refundable */}
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-white">Refundable</span>
+                    <span className="text-sm text-white">Non-refundable</span>
                     <input
                       id="toggle-refundable"
                       type="checkbox"
-                      checked={showRefundable}
-                      onChange={() => setShowRefundable(v => !v)}
+                      checked={showNonRefundable}
+                      onChange={() => setShowNonRefundable(v => !v)}
                       className="sr-only"
                     />
                     <label
@@ -495,14 +481,14 @@ export default function Component() {
                       className={`
                         relative inline-flex h-6 w-12 items-center rounded-full
                         transition-colors duration-300 ease-in-out
-                        ${showRefundable ? "bg-[#19c0f4]" : "bg-white/30"}
+                        ${showNonRefundable ? "bg-[#19c0f4]" : "bg-white/30"}
                       `}
                     >
                       <span
                         className={`
                           block h-4 w-4 transform rounded-full bg-white shadow
                           transition-transform duration-200 ease-in-out
-                          ${showRefundable ? "translate-x-6" : "translate-x-1"}
+                          ${showNonRefundable ? "translate-x-6" : "translate-x-1"}
                         `}
                       />
                     </label>
@@ -563,6 +549,18 @@ export default function Component() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              {/* Search bar */}
+              <div className="mt-4 w-full md:w-80 relative">
+                <Input
+                  placeholder="Search for Coins"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="bg-[#21325e]/50 border-[#21325e] text-white placeholder:text-white/50 pr-12 w-full"
+                />
+                <Button className="absolute right-0 top-0 bottom-0 bg-[#19c0f4] hover:bg-[#16abd9] text-white rounded-l-none hover:brightness-110 transition-all duration-300">
+                  <Search className="w-4 h-4" />
+                </Button>
               </div>
             </div>
 

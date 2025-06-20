@@ -78,7 +78,7 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
               key={r.txHash}
               className={`
                 border-b border-[#21325e]/50
-                ${launchInfo.creatorPreBuys && i === 0 ? 'bg-yellow-500/20' : ''}
+                ${launchInfo.creatorPreBuys && i === rows.length - 1 ? 'bg-yellow-500/20' : ''}
               `}
             >
                 <td
