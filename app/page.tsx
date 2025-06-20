@@ -450,48 +450,84 @@ export default function Component() {
                 </div>
 
                 {/* Toggles */}
-                <div className="flex flex-wrap items-center space-x-3 mb-4 justify-center md:justify-start">
-                  <button
-                    className={`
-                      inline-flex items-center justify-center
-                      px-3 py-1 rounded-full border
-                      transition
-                      ${showCreator
-                        ? 'bg-[#19c0f4] text-white border-[#19c0f4]'
-                        : 'bg-transparent text-[#19c0f4] border-[#19c0f4]'}
-                    `}
-                    onClick={() => setShowCreator(!showCreator)}
-                  >
-                    Creator Bought
-                  </button>
+                <div className="flex flex-wrap items-center space-x-4 mb-4 justify-center md:justify-start">
+                  {/* Creator Bought */}
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="toggle-creator"
+                      type="checkbox"
+                      checked={showCreator}
+                      onChange={() => setShowCreator((v) => !v)}
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor="toggle-creator"
+                      className={`
+                        relative inline-flex h-6 w-12 items-center rounded-full transition-colors
+                        ${showCreator ? "bg-[#19c0f4]" : "bg-white/30"}
+                      `}
+                    >
+                      <span
+                        className={`
+                          block h-4 w-4 transform rounded-full bg-white shadow transition-transform
+                          ${showCreator ? "translate-x-6" : "translate-x-1"}
+                        `}
+                      />
+                    </label>
+                    <span className="text-sm text-white">Creator Bought</span>
+                  </div>
 
-                  <button
-                    className={`
-                      inline-flex items-center justify-center
-                      px-3 py-1 rounded-full border
-                      transition
-                      ${showRefundable
-                        ? 'bg-[#19c0f4] text-white border-[#19c0f4]'
-                        : 'bg-transparent text-[#19c0f4] border-[#19c0f4]'}
-                    `}
-                    onClick={() => setShowRefundable(!showRefundable)}
-                  >
-                    Refundable
-                  </button>
+                  {/* Refundable */}
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="toggle-refundable"
+                      type="checkbox"
+                      checked={showRefundable}
+                      onChange={() => setShowRefundable((v) => !v)}
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor="toggle-refundable"
+                      className={`
+                        relative inline-flex h-6 w-12 items-center rounded-full transition-colors
+                        ${showRefundable ? "bg-[#19c0f4]" : "bg-white/30"}
+                      `}
+                    >
+                      <span
+                        className={`
+                          block h-4 w-4 transform rounded-full bg-white shadow transition-transform
+                          ${showRefundable ? "translate-x-6" : "translate-x-1"}
+                        `}
+                      />
+                    </label>
+                    <span className="text-sm text-white">Refundable</span>
+                  </div>
 
-                  <button
-                    className={`
-                      inline-flex items-center justify-center
-                      px-3 py-1 rounded-full border
-                      transition
-                      ${showLPs
-                        ? 'bg-[#19c0f4] text-white border-[#19c0f4]'
-                        : 'bg-transparent text-[#19c0f4] border-[#19c0f4]'}
-                    `}
-                    onClick={() => setShowLPs(!showLPs)}
-                  >
-                    LPs
-                  </button>
+                  {/* LPs */}
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="toggle-lps"
+                      type="checkbox"
+                      checked={showLPs}
+                      onChange={() => setShowLPs((v) => !v)}
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor="toggle-lps"
+                      className={`
+                        relative inline-flex h-6 w-12 items-center rounded-full transition-colors
+                        ${showLPs ? "bg-[#19c0f4]" : "bg-white/30"}
+                      `}
+                    >
+                      <span
+                        className={`
+                          block h-4 w-4 transform rounded-full bg-white shadow transition-transform
+                          ${showLPs ? "translate-x-6" : "translate-x-1"}
+                        `}
+                      />
+                    </label>
+                    <span className="text-sm text-white">LPs</span>
+                  </div>
                 </div>
 
                 {/** ─── Sort dropdown ─── **/}
