@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient } from "wagmi";
+import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient, type GetBlockReturnType } from "wagmi";
 import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json";
 import { parseEther, parseUnits, getContractError, decodeEventLog, getAbiItem } from "viem";
@@ -145,60 +145,71 @@ export default function TradingPanel({
   async function handleBuy() {
     if (!isValidPositiveNumber(amount)) return;
 
-    // 1️⃣ Send buy()
+    /* 1️⃣ send the tx & get hash */
     const hash = await writeContractAsync({
-      address:      launchAddress,
-      abi:          launchAbi,
+      address: launchAddress,
+      abi: launchAbi,
       functionName: "buy",
-      chainId:      bscTestnet.id,
-      value:        parseEther(amount),
+      chainId: bscTestnet.id,
+      value: parseEther(amount),
     });
 
-    // 2️⃣ Wait and grab receipt
-    const receipt = await publicClient.waitForTransactionReceipt({
-      hash,
-      confirmations: 1,
-    });
-
-    // 3️⃣ Find & decode the TokensBought event
-    const eventDef = getAbiItem({ abi: launchAbi, name: "TokensBought" });
-    let bnbSpentWei = 0n, tokenAmountWei = 0n;
-    for (const log of receipt.logs) {
-      try {
-        const decoded = decodeEventLog({
-          abi:    launchAbi,
-          data:   log.data,
-          topics: log.topics,
-          strict: true,
-        });
-        if (decoded.eventName === "TokensBought") {
-          bnbSpentWei     = decoded.args.bnbSpent;
-          tokenAmountWei  = decoded.args.tokenAmount;
-          break;
-        }
-      } catch {
-        // not our event
-      }
-    }
-
-    // 4️⃣ Convert to human units
-    const bnbAmount   = Number(bnbSpentWei)    / 1e18;
-    const tokenAmount = Number(tokenAmountWei) / 1e18;
-
-    // 5️⃣ Persist
+    /* 2️⃣ OPTIMISTIC placeholder row (amounts = 0) */
     await fetch(`/api/trades/${launchAddress}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         wallet,
-        type:        "Buy",
-        bnbAmount:   bnbAmount.toFixed(6),
-        tokenAmount: tokenAmount.toString(),
-        txHash:      hash,
+        type: "Buy",
+        txHash: hash,
       }),
     });
 
-    // 6️⃣ Cleanup & refetch UI
+    /* 3️⃣ wait for receipt */
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash,
+      confirmations: 1,
+    });
+
+    /* 3.1️⃣ fetch block timestamp */
+    const block = await publicClient.getBlock({ blockHash: receipt.blockHash });
+    const blockTimestamp = Number(block.timestamp);          // seconds
+
+    /* 4️⃣ decode TokensBought */
+    let bnbSpentWei = 0n,
+        tokenAmountWei = 0n;
+    for (const log of receipt.logs) {
+      try {
+        const decoded = decodeEventLog({
+          abi: launchAbi,
+          data: log.data,
+          topics: log.topics,
+          strict: true,
+        });
+        if (decoded.eventName === "TokensBought") {
+          bnbSpentWei    = decoded.args.bnbSpent;
+          tokenAmountWei = decoded.args.tokenAmount;
+          break;
+        }
+      } catch {}
+    }
+
+    const bnbAmount   = Number(bnbSpentWei)    / 1e18;
+    const tokenAmount = Number(tokenAmountWei) / 1e18;
+
+    /* 5️⃣ FINAL PATCH – only if both > 0 */
+    await fetch(`/api/trades/${launchAddress}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        txHash: hash,
+        bnbAmount,
+        tokenAmount,
+        blockTimestamp,
+      }),
+    });
+
+    /* 6️⃣ UI cleanup */
     setAmount("");
     setSelectedPercentage("");
     await refetchBal();
@@ -208,93 +219,77 @@ export default function TradingPanel({
   async function handleSell() {
     if (!canSellNow || !amount || !wallet) return;
 
-    try {
-      // 1️⃣ Take a “before” snapshot of buyer state
-      const before = await publicClient.readContract({
-        address:      launchAddress,
-        abi:          launchAbi,
-        functionName: "buyers",
-        args:         [wallet],
-      }) as readonly [bigint, bigint, boolean];
+    const sellAmount = Math.floor(Number(amount));
+    if (sellAmount <= 0 || isNaN(sellAmount)) return;
 
-      // 2️⃣ Validate
-      const sellAmount = Math.floor(Number(amount));
-      if (sellAmount <= 0 || isNaN(sellAmount)) return;
+    const tokenAmt = parseUnits(sellAmount.toString(), 18);
 
-      const allocatedTokens = Number(before[1]) / 1e18;
-      if (sellAmount > allocatedTokens) {
-        console.error("Too many tokens");
-        return;
-      }
+    /* 1️⃣ send tx */
+    const hash = await writeContractAsync({
+      address: launchAddress,
+      abi: launchAbi,
+      functionName: "sellTokens",
+      args: [tokenAmt],
+      chainId: bscTestnet.id,
+    });
 
-      // 3️⃣ Fire sellTokens()
-      const tokenAmt = parseUnits(sellAmount.toString(), 18);
-      const hash = await writeContractAsync({
-        address:      launchAddress,
-        abi:          launchAbi,
-        functionName: "sellTokens",
-        args:         [tokenAmt],
-        chainId:      bscTestnet.id,
-      });
+    /* 2️⃣ optimistic POST */
+    await fetch(`/api/trades/${launchAddress}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wallet,
+        type: "Sell",
+        txHash: hash,
+      }),
+    });
 
-      // 4️⃣ Wait receipt
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash,
-        confirmations: 1,
-      });
+    /* 3️⃣ wait receipt */
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash,
+      confirmations: 1,
+    });
 
-      // 5️⃣ Decode TokensSold event
-      const eventDef = getAbiItem({ abi: launchAbi, name: "TokensSold" });
-      let grossReturnWei = 0n, userGetsWei = 0n;
-      for (const log of receipt.logs) {
-        try {
-          const decoded = decodeEventLog({
-            abi:    launchAbi,
-            data:   log.data,
-            topics: log.topics,
-            strict: true,
-          });
-          if (decoded.eventName === "TokensSold") {
-            grossReturnWei = decoded.args.grossReturn;
-            userGetsWei    = decoded.args.userGets;
-            break;
-          }
-        } catch {
-          // skip
+    /* 3.1️⃣ block time */
+    const block = await publicClient.getBlock({ blockHash: receipt.blockHash });
+    const blockTimestamp = Number(block.timestamp);
+
+    /* 4️⃣ decode TokensSold */
+    let userGetsWei = 0n;
+    for (const log of receipt.logs) {
+      try {
+        const decoded = decodeEventLog({
+          abi: launchAbi,
+          data: log.data,
+          topics: log.topics,
+          strict: true,
+        });
+        if (decoded.eventName === "TokensSold") {
+          userGetsWei = decoded.args.userGets;
+          break;
         }
-      }
-
-      // 6️⃣ Convert to human
-      const bnbReceived   = Number(userGetsWei)    / 1e18;
-      const tokensSold    = sellAmount;             // integer
-
-      // 7️⃣ Persist
-      await fetch(`/api/trades/${launchAddress}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet,
-          type:        "Sell",
-          bnbAmount:   bnbReceived.toFixed(6),
-          tokenAmount: tokensSold.toString(),
-          txHash:      hash,
-        }),
-      });
-
-      // 8️⃣ Cleanup & refetch
-      setAmount("");
-      setSelectedPercentage("");
-      await refetchBal();
-      await refetchBuyer();
-
-    } catch (error: any) {
-      console.error("Sell error:", error);
-      const contractError = getContractError(error, {
-        abi:           launchAbi,
-        functionName:  "sellTokens",
-      });
-      console.error(contractError?.shortMessage || error.message);
+      } catch {}
     }
+
+    const bnbAmount = Number(userGetsWei) / 1e18;
+
+    /* 5️⃣ final PATCH */
+    await fetch(`/api/trades/${launchAddress}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        txHash: hash,
+        bnbAmount,
+        tokenAmount: sellAmount,
+        blockTimestamp,
+      }),
+    });
+
+    /* 6️⃣ cleanup */
+    setAmount("");
+    setSelectedPercentage("");
+    await refetchBal();
+    await refetchBuyer();
   }
 
   useEffect(() => {

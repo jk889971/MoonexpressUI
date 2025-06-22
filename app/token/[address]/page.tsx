@@ -34,11 +34,13 @@ export default function TokenPage() {
   if (!address || !launchProxy) {
     return (
     <div className="flex-1 flex items-center justify-center p-8">
+      <div className="w-[90%] max-w-[680px] sm:max-w-[720px] md:max-w-[750px] aspect-square">
         <img
           src="/loading.gif"
-          className="w-[680px] h-[680px] sm:w-[720px] sm:h-[720px] md:w-[750px] md:h-[750px]"
+          className="w-full h-full object-contain"
         />
       </div>
+    </div>
     )
   }
 

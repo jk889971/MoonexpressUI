@@ -9,7 +9,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//  ─── Your models below ────────────────────────────────────────────────────
+//  ─── Models ──────────────────────────────────────────────────────────────
 model Launch {
   launchAddress String   @id @db.VarChar(42)
   tokenAddress  String   @db.VarChar(42)
@@ -21,39 +21,49 @@ model Launch {
   createdAt     DateTime @default(now())
   comments      Comment[]
   trades        Trade[]
-  
+
   @@index([launchAddress])
 }
 
 model Profile {
-  wallet       String   @id @db.VarChar(42)
-  avatarIndex  Int
-  comments     Comment[]
+  wallet      String   @id @db.VarChar(42)
+  avatarIndex Int
+  comments    Comment[]
 }
 
 model Trade {
   id            Int      @id @default(autoincrement())
   launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
   launchAddress String   @db.VarChar(42)
+
   wallet        String   @db.VarChar(42)
-  type          String   // "Buy" or "Sell"
+  type          String               // "Buy" | "Sell"
+
   bnbAmount     Decimal  @db.Decimal(24, 18)
   tokenAmount   Decimal  @db.Decimal(32, 0)
-  txHash        String   @db.VarChar(66)
-  createdAt     DateTime @default(now())
+
+  txHash        String   @unique @db.VarChar(66)
+
+  pending       Boolean  @default(true)  // ← new flag
+  createdAt     DateTime @default(now()) // will be overwritten with block-time
+
+  @@index([launchAddress, createdAt])
 }
 
 model Comment {
   id            Int      @id @default(autoincrement())
   launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
   launchAddress String   @db.VarChar(42)
+
   parentId      Int?
   parent        Comment? @relation("CommentReplies", fields: [parentId], references: [id])
   replies       Comment[] @relation("CommentReplies")
+
   wallet        String   @db.VarChar(42)
   profile       Profile  @relation(fields: [wallet], references: [wallet])
+
   text          String   @db.Text
   createdAt     DateTime @default(now())
-  
+
   @@index([launchAddress])
 }
