@@ -3,10 +3,10 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient, type GetBlockReturnType } from "wagmi";
+import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient } from "wagmi";
 import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json";
-import { parseEther, parseUnits, getContractError, decodeEventLog, getAbiItem } from "viem";
+import { parseEther, parseUnits, decodeEventLog } from "viem";
 import { bscTestnet } from "@/lib/chain";
 
 interface TradingPanelProps {
