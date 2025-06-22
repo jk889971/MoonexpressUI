@@ -114,15 +114,13 @@ export default function CreateTokenForm() {
 
   //── VALIDATION CONSTANTS ─────────────────────────────────────────────────────
   const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
-  const MIN_DIMENSION = 100
-  const MAX_DIMENSION = 1000
-  const ALLOWED_EXTENSIONS = /\.(png|jpe?g|webp|gif)$/i
+  const ALLOWED_EXTENSIONS = /\.(png|jpe?g|webp|gif|svg|avif)$/i
 
   //── HELPER: validate file type, size, dimensions ─────────────────────────────
   const handleFileSelect = (file: File) => {
     // 1) check extension / mime
     if (!ALLOWED_EXTENSIONS.test(file.name)) {
-      addToast("Invalid file format. Only png, jpeg, jpg, webp & gif are allowed.")
+      addToast("Invalid file format. Only png, jpeg, jpg, webp, gif, svg & avif are allowed.")
       return
     }
 
@@ -132,7 +130,7 @@ export default function CreateTokenForm() {
       return
     }
 
-    // 3) dimensions: load into a DOM <img>
+    // 3) 1:1 ratio
     const img = new window.Image()
     const objectUrl = URL.createObjectURL(file)
     img.src = objectUrl
@@ -142,19 +140,7 @@ export default function CreateTokenForm() {
       const h = img.naturalHeight
       URL.revokeObjectURL(objectUrl)
 
-      if (
-        w < MIN_DIMENSION ||
-        h < MIN_DIMENSION ||
-        w > MAX_DIMENSION ||
-        h > MAX_DIMENSION
-      ) {
-        addToast(
-          `Image dimensions must be between ${MIN_DIMENSION}×${MIN_DIMENSION} to ${MAX_DIMENSION}×${MAX_DIMENSION}. Yours is ${w}×${h}.`
-        )
-        return
-      }
-
-      // ─── NEW square‐ratio check ───────────────────────────────
+      // ─── square‐ratio check ───────────────────────────────
       if (w !== h) {
         addToast(
           `Image must be square (1:1 aspect ratio). Yours is ${w}×${h}.`
@@ -505,7 +491,7 @@ export default function CreateTokenForm() {
                       setIsDragging(false)
                     }
                   }}
-                >
+                 >
                   <div
                     className="flex-1 bg-[#132043] rounded-xl border border-dashed border-gray-600 p-3 flex items-center justify-center h-12 cursor-pointer hover:border-[#19C0F4] transition-colors relative z-50"
                     onDragOver={(e) => e.preventDefault()}
@@ -545,10 +531,17 @@ export default function CreateTokenForm() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept=".png,.jpg,.jpeg,.webp,.gif,.svg,.avif"
                   onChange={handleFileInputChange}
                   className="hidden"
                 />
+
+                {/* ─── Upload Requirements ──────────────────────────────────────── */}
+                <p className="mt-2 text-xs text-gray-400">
+                  • Formats: .png, .jp(e)g .webp, .gif, .svg, .avif<br/>
+                  • Max size: 2 MB<br/>
+                  • Must be square (1:1 aspect ratio)
+                </p>
               </div>
 
               {/* ─── Dropdowns: Type, Receive, Duration ────────────────────────────── */}

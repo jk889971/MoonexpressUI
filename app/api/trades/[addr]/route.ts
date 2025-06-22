@@ -16,6 +16,16 @@ export async function POST(
   }
 
   const { wallet, type, bnbAmount, tokenAmount, txHash } = await req.json();
+
+  if (
+    wallet == null ||
+    Number(bnbAmount)  <= 0 ||
+    Number(tokenAmount) <= 0
+  ) {
+    // 204 = “No Content” (success but nothing to return)
+    return new Response(null, { status: 204 });
+  }
+
   const trade = await prisma.trade.create({
     data: {
       launchAddress,

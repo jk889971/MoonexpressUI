@@ -80,6 +80,23 @@ export default function TradingPanel({
 
   const bnbBal = bnbBalBig ? Number(bnbBalBig.value) / 1e18 : 0;
 
+  // ❶ NEW: fetch maxBuy (global per-wallet cap)
+  const { data: maxBuyWei, refetch: refetchMaxBuy } = useReadContract({
+    address:      launchAddress,
+    abi:          launchAbi,
+    functionName: "maxBuy",
+    chainId:      bscTestnet.id,
+    // it almost never changes, but refetching keeps the “room” live
+    query: { enabled: Boolean(launchAddress), refetchInterval: 1000 },
+  });
+
+  // ❷ Helpers – convert to human units
+  const maxBuyBNB  = maxBuyWei ? Number(maxBuyWei) / 1e18 : 0;
+  const bnbPaidBNB = buyer && Array.isArray(buyer) && buyer[0] !== undefined
+    ? Number(buyer[0]) / 1e18
+    : 0;
+  const roomBNB    = Math.max(maxBuyBNB - bnbPaidBNB, 0);   // never negative
+
   // --- price per BNB in USD (Chainlink feed is inside launch) ---
   const { data: priceFeed } = useReadContract({
     address: launchAddress,
@@ -185,6 +202,7 @@ export default function TradingPanel({
     setAmount("");
     setSelectedPercentage("");
     await refetchBal();
+    await refetchBuyer();
   }
 
   async function handleSell() {
@@ -282,10 +300,11 @@ export default function TradingPanel({
   useEffect(() => {
     if (!block) return
     refetchBal()
-    refetchBuyer()          // keeps “allocated” live
+    refetchBuyer()
     refetchPriceUsd()
     refetchLastRound()
-  }, [block, refetchBal, refetchBuyer, refetchPriceUsd, refetchLastRound])
+    refetchMaxBuy();
+  }, [block, refetchBal, refetchBuyer, refetchPriceUsd, refetchLastRound, refetchMaxBuy])
 
   const handlePercentageClick = (pct: string) => {
     setSelectedPercentage(pct);
@@ -442,36 +461,41 @@ export default function TradingPanel({
           </div>
         </div>
 
-        {/* Token + Balance Row */}
+        {/* Token + Balance + Limit (right side stacked) */}
         <div className="flex items-center justify-between">
+          {/* left — symbol / BNB icon */}
           <div className="flex items-center gap-2">
             {tradingTab === "sell" ? (
-            <>
-              {imgSrc ? (
-                <img
-                  src={imgSrc}
-                  alt="token"
-                  className="w-6 h-6 rounded-full object-cover"
-                />
-              ) : (
-                /* fallback ⬇ if no image yet */
-                <div className="w-6 h-6 bg-[#fac031] rounded-full" />
-              )}
-              <span className="text-white font-medium">
-                {symbol ?? "TOKEN"}
-              </span>
-            </>
-          ) : (
-            <>
-              <div className="w-6 h-6 bg-yellow-500 rounded-full" />
-              <span className="text-white font-medium">BNB</span>
-            </>
-          )}
+              <>
+                {imgSrc ? (
+                  <img src={imgSrc} alt="token" className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <div className="w-6 h-6 bg-[#fac031] rounded-full" />
+                )}
+                <span className="text-white font-medium">{symbol ?? "TOKEN"}</span>
+              </>
+            ) : (
+              <>
+                <div className="w-6 h-6 bg-yellow-500 rounded-full" />
+                <span className="text-white font-medium">BNB</span>
+              </>
+            )}
           </div>
-          <div className="text-[#c8cdd1] text-sm">
-            Balance: {tradingTab === "buy"
-              ? `${bnbBal.toFixed(4)} BNB`
-              : allocated.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+
+          {/* right — stacked text */}
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-[#c8cdd1] text-sm">
+              Balance:&nbsp;
+              {tradingTab === "buy"
+                ? `${bnbBal.toFixed(4)} BNB`
+                : allocated.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+            </span>
+            {tradingTab === "buy" && (
+              <span className="text-[#c8cdd1] text-sm">
+                Buy Limit:&nbsp;
+                {wallet ? roomBNB.toFixed(4) : "-"} BNB
+              </span>
+            )}
           </div>
         </div>
 
