@@ -33,13 +33,21 @@ export default function TokenPage() {
 
   if (!address || !launchProxy) {
     return (
-    <div className="flex-1 flex items-center justify-center p-8">
-        <img
-          src="/loading.gif"
-          className="w-[680px] h-[680px] sm:w-[720px] sm:h-[720px] md:w-[750px] md:h-[750px]"
-        />
-      </div>
-    )
+     <div className="flex flex-col min-h-screen">
+       {/* this will fill all space above the footer */}
+       <div className="flex-grow flex items-center justify-center p-8">
+         <img
+           src="/loading.gif"
+           className="
+             w-[680px]
+             h-[clamp(280px,90vw,680px)]
+             sm:w-[720px] sm:h-[600px]
+             md:w-[750px] md:h-[750px]
+           "
+         />
+       </div>
+     </div>
+   )
   }
 
   return (
