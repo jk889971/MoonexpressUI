@@ -1,0 +1,21 @@
+# .github/workflows/finalise-pending.yml
+name: Finalise pending trades
+
+on:
+  schedule:
+    # every 10 minutes (UTC)
+    - cron: "*/10 * * * *"
+
+jobs:
+  hit-endpoint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Call /api/finalise-pending
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: |
+          curl -fsSL "$SITE_URL/api/finalise-pending" \
+            || echo "::warning ::Endpoint call failed"

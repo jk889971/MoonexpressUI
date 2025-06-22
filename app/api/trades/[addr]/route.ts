@@ -1,88 +1,80 @@
 // app/api/trades/[addr]/route.ts
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client'
+
+async function getDb() {
+  const mod = await import('@/lib/db')
+  return mod.prisma as typeof import('@/lib/db').prisma
+}
 
 export async function POST(
   req: Request,
-  { params }: { params: { addr: string } }
+  { params }: { params: { addr: string } },
 ) {
-  const { prisma } = await import('@/lib/db');
-  const launchAddress = params.addr.toLowerCase();
-  const { wallet, type, txHash } = await req.json();
+  const prisma         = await getDb()
+  const launchAddress  = params.addr.toLowerCase()
+  const { wallet, type, txHash } = await req.json()
 
-  // optimistic placeholder row
+  if (!wallet || !type || !txHash)
+    return new Response('Bad request', { status: 400 })
+
   await prisma.trade.upsert({
     where:  { txHash },
-    update: {},
+    update: {},                           // if hash exists → leave untouched
     create: {
       launchAddress,
       wallet,
       type,
-      bnbAmount:   new Prisma.Decimal(0),
-      tokenAmount: new Prisma.Decimal(0),
       txHash,
+      // amounts default to 0 (schema) --> pending placeholder
       pending: true,
     },
-  });
+  })
 
-  return new Response(null, { status: 201 });
+  return new Response(null, { status: 201 })
 }
 
-/* ─────────────  PATCH: final-ise trade  ───────────── */
-export async function PATCH(
-  req: Request,
-  { params }: { params: { addr: string } }
-) {
-  const { prisma } = await import('@/lib/db');
-  const launchAddress = params.addr.toLowerCase();
-
+export async function PATCH(req: Request) {
+  const prisma = await getDb()
   const {
     txHash,
-    bnbAmount,
-    tokenAmount,
-    blockTimestamp,
-  } = await req.json();
+    bnbAmount,      // string | number
+    tokenAmount,    // string | number
+    blockTimestamp, // seconds
+  } = await req.json()
 
-  /* Guard: ignore / purge zero-amount rows */
-  if (
-    !txHash ||
-    Number(bnbAmount)  <= 0 ||
-    Number(tokenAmount) <= 0
-  ) {
-    // remove the placeholder row so it never surfaces
-    try {
-      await prisma.trade.delete({ where: { txHash } });
-    } catch { /* row might already be gone – ignore */ }
+  if (!txHash)
+    return new Response('Bad request', { status: 400 })
 
-    return new Response(null, { status: 204 });
+  if (+bnbAmount === 0 || +tokenAmount === 0) {
+    // remove useless placeholder
+    await prisma.trade.delete({ where: { txHash } }).catch(() => {})
+    return new Response(null, { status: 204 })
   }
 
-  // happy path – finalise with real values
-  const trade = await prisma.trade.update({
+  await prisma.trade.update({
     where: { txHash },
     data: {
-      launchAddress,
-      bnbAmount:   new Prisma.Decimal(bnbAmount),
-      tokenAmount: new Prisma.Decimal(tokenAmount),
+      bnbAmount:   new Prisma.Decimal(bnbAmount.toString()),
+      tokenAmount: new Prisma.Decimal(tokenAmount.toString()),
       pending:     false,
-      createdAt:   new Date(blockTimestamp * 1000),
+      createdAt:   new Date(blockTimestamp * 1_000),
     },
-  });
+  })
 
-  return new Response(JSON.stringify(trade));
+  return new Response(null, { status: 200 })
 }
 
-/* ─────────────  GET: only fully-finalised rows  ───────────── */
 export async function GET(
   _req: Request,
-  { params }: { params: { addr: string } }
+  { params }: { params: { addr: string } },
 ) {
-  const { prisma } = await import('@/lib/db');
-  const launchAddress = params.addr.toLowerCase();
+  const prisma        = await getDb()
+  const launchAddress = params.addr.toLowerCase()
 
   const trades = await prisma.trade.findMany({
-    where: { launchAddress, pending: false },
-    orderBy: { createdAt: 'desc' },
-  });
+    where:  { launchAddress, pending: false },
+    orderBy:{ createdAt: 'desc' },
+  })
 
-  return new Response(JSON.stringify(trades));
+  return new Response(JSON.stringify(trades))
 }

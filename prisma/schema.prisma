@@ -39,8 +39,8 @@ model Trade {
   wallet        String   @db.VarChar(42)
   type          String               // "Buy" | "Sell"
 
-  bnbAmount     Decimal  @db.Decimal(24, 18)
-  tokenAmount   Decimal  @db.Decimal(32, 0)
+  bnbAmount   Decimal @db.Decimal(24, 18) @default(0)
+  tokenAmount Decimal @db.Decimal(32, 0)  @default(0)
 
   txHash        String   @unique @db.VarChar(66)
 

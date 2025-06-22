@@ -2,10 +2,10 @@
 'use client'
 
 import * as React from 'react'
-import { WagmiConfig } from 'wagmi'
+import { WagmiConfig }             from 'wagmi'
 import {
   RainbowKitProvider,
-  darkTheme,
+  darkTheme,          // ← add
 } from '@rainbow-me/rainbowkit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@rainbow-me/rainbowkit/styles.css'
@@ -16,40 +16,21 @@ import { wagmiConfig, chains } from '@/wagmi.config'
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = React.useState(() => new QueryClient())
 
-  /* ─────────────────────────────────────────────────────────────
-     FINALISE any rows that are still pending when the tab regains focus
-  ────────────────────────────────────────────────────────────────*/
-  React.useEffect(() => {
-    async function finalisePending() {
-      try {
-        await fetch('/api/finalise-pending', { method: 'POST' })
-      } catch {
-        /* network error → try again next focus */
-      }
-    }
-
-    function handleVisibility() {
-      if (document.visibilityState === 'visible') finalisePending()
-    }
-
-    window.addEventListener('visibilitychange', handleVisibility)
-    return () =>
-      window.removeEventListener('visibilitychange', handleVisibility)
-  }, [])
-
   return (
     <WagmiConfig config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           chains={chains}
+          /** ----- DARK THEME -------------- */
           theme={darkTheme({
-            accentColor: '#19c0f4',
-            accentColorForeground: '#000025',
-            borderRadius: 'medium',
-            fontStack: 'system',
-            overlayBlur: 'small',
+            accentColor:          '#19c0f4',   // your cyan brand colour
+            accentColorForeground:'#000025',   // text on the accent
+            borderRadius:         'medium',    // or 'small' | 'large'
+            fontStack:            'system',    // matches Tailwind default
+            overlayBlur:          'small',     // subtle glass effect
           })}
-          modalSize="compact"
+          /** ----- COMPACT MODAL ----------- */
+          modalSize="compact"                 // or 'wide'
         >
           {children}
         </RainbowKitProvider>

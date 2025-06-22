@@ -372,19 +372,30 @@ export default function CreateTokenForm() {
           })
 
                   const buyer       = (args.buyer as string).toLowerCase()
-          const bnbSpent    = formatEther(args.bnbSpent as bigint)
-          const tokenAmount = formatEther(args.tokenAmount as bigint)
+          const bnbSpent    = args.bnbSpent  as bigint
+          const tokenWei    = args.tokenAmount as bigint
           const txHash      = logs[0].transactionHash
 
+          /* ① placeholder row (pending=true) */
           await fetch(`/api/trades/${launchAddr}`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ wallet: buyer, type: "Buy", txHash }),
+          })
+
+          /* ② fetch block-timestamp so the row slots in correctly */
+          const blk = await customrpc.getBlock({ blockHash: logs[0].blockHash })
+          const ts  = Number(blk.timestamp)          // seconds
+
+          /* ③ finalise the row */
+          await fetch(`/api/trades/${launchAddr}`, {
+            method:  "PATCH",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              wallet:      buyer,
-              type:        "Buy",
-              bnbAmount:   bnbSpent,
-              tokenAmount: tokenAmount,
               txHash,
+              bnbAmount:   formatEther(bnbSpent),
+              tokenAmount: formatEther(tokenWei),
+              blockTimestamp: ts,
             }),
           })
         }
