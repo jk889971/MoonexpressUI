@@ -28,7 +28,7 @@ export function makeFeed(
 ) {
   /* ───── helpers ───── */
   const TV_NAME  = kind === 'price' ? `${symbol}/USD` : `${symbol}/MC`
-  const SCALE    = kind === 'price' ? 1e-8 : 1e-2        // matches DB storage
+  const SCALE    = kind === 'price' ? 100_000_000 : 100
   const cache    = new Map<number, Bar>()                // key = bucketMs
   const timers   : Record<string, NodeJS.Timeout> = {}
   let newest     = 0                                     // latest bucketMs seen
