@@ -75,14 +75,32 @@ export async function PATCH(req: Request) {
     const launch = await prisma.trade.findUniqueOrThrow({
       where: { txHash },
       select: { launchAddress: true },
-    })
+    });
 
-    const bucketMs = Math.floor(blockTimestamp / 60) * 60 * 1_000
-    const priceDec = new Prisma.Decimal(priceUsd)
-    const mcapDec  = new Prisma.Decimal(mcapUsd)
+    const bucketMs = BigInt(Math.floor(blockTimestamp / 60) * 60 * 1_000);
+    const priceDec = new Prisma.Decimal(priceUsd);
+    const mcapDec  = new Prisma.Decimal(mcapUsd);
+
+    /* find existing record (if any) to preserve open/high/low rules */
+    const existing = await prisma.priceBar.findUnique({
+      where: {
+        launchAddress_bucketMs: {
+          launchAddress: launch.launchAddress,
+          bucketMs,
+        },
+      },
+    });
+
+    const newHigh = existing
+      ? Prisma.Decimal.max(existing.high, priceDec)
+      : priceDec;
+
+    const newLow  = existing
+      ? Prisma.Decimal.min(existing.low,  priceDec)
+      : priceDec;
 
     await prisma.priceBar.upsert({
-      where : {
+      where: {
         launchAddress_bucketMs: {
           launchAddress: launch.launchAddress,
           bucketMs,
@@ -98,13 +116,12 @@ export async function PATCH(req: Request) {
         mcapUsd: mcapDec,
       },
       update: {
-        // keep open as-is, refresh rest
-        high : priceDec,
-        low  : priceDec,
-        close: priceDec,
+        high   : newHigh,
+        low    : newLow,
+        close  : priceDec,
         mcapUsd: mcapDec,
       },
-    })
+    });
   }
 
   return new Response(null, { status: 200 })

@@ -387,6 +387,22 @@ export default function CreateTokenForm() {
             mcapRaw    = dec.args.marketCapUsd as bigint
           }
 
+          if (priceRaw === 0n) {
+            priceRaw = await customrpc.readContract({
+              address: launchAddr as `0x${string}`,
+              abi:     launchAbi,
+              functionName: "getCurrentPriceUsd",
+            })
+          }
+
+          if (mcapRaw === 0n) {
+            mcapRaw = await customrpc.readContract({
+              address: launchAddr as `0x${string}`,
+              abi:     launchAbi,
+              functionName: "getLiveMarketCapUsd",
+            })
+          }
+
           const txHash = logs[0].transactionHash
 
           /* convert raw uint256 → strings for DB */

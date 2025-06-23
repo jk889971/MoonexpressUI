@@ -189,10 +189,27 @@ export default function TradingPanel({
       } catch {}
     }
 
+    // ─── fallback: query the view fns if the events were missing ──────────
+    if (priceRaw === 0n) {
+      priceRaw = await publicClient.readContract({
+        address: launchAddress,
+        abi:     launchAbi,
+        functionName: "getCurrentPriceUsd",
+      });
+    }
+
+    if (mcapRaw === 0n) {
+      mcapRaw = await publicClient.readContract({
+        address: launchAddress,
+        abi:     launchAbi,
+        functionName: "getLiveMarketCapUsd",
+      });
+    }
+
     /* convert raw uint256 → string, matching DB scale */
-  const priceUsdStr = formatUnits(priceRaw, 8);            // 8-dec -> "0.01234567"
-  const mcapUsdStr  = Number(formatUnits(mcapRaw, 26))      // 26-dec
-                         .toFixed(2);                      // keep cents
+    const priceUsdStr = formatUnits(priceRaw, 8);            // 8-dec -> "0.01234567"
+    const mcapUsdStr  = Number(formatUnits(mcapRaw, 26))      // 26-dec
+                          .toFixed(2);                      // keep cents
 
     /* 6️⃣ finalise the row */
     await fetch(`/api/trades/${launchAddress}`, {
@@ -259,6 +276,23 @@ export default function TradingPanel({
           mcapRaw  = dec.args.marketCapUsd;
         }
       } catch {}
+    }
+
+    // ─── fallback: query the view fns if the events were missing ──────────
+    if (priceRaw === 0n) {
+      priceRaw = await publicClient.readContract({
+        address: launchAddress,
+        abi:     launchAbi,
+        functionName: "getCurrentPriceUsd",
+      });
+    }
+
+    if (mcapRaw === 0n) {
+      mcapRaw = await publicClient.readContract({
+        address: launchAddress,
+        abi:     launchAbi,
+        functionName: "getLiveMarketCapUsd",
+      });
     }
 
     const priceUsdStr = formatUnits(priceRaw, 8);
