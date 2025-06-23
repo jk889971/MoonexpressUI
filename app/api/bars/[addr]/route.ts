@@ -51,14 +51,16 @@ export async function GET(
         high  : Number(r.high),
         low   : Number(r.low),
         close : Number(r.close),
-        volume: 0,
+        volume: 0,  // Volume not used for OHLC
         mcapUsd: Number(r.mcapUsd),
       }
     } else {
+      // Only update high, low, close and mcap
       cur.high    = Math.max(cur.high, Number(r.high))
       cur.low     = Math.min(cur.low,  Number(r.low))
       cur.close   = Number(r.close)
       cur.mcapUsd = Number(r.mcapUsd)
+      // Open remains unchanged (first value in bucket)
     }
   }
   if (cur) out.push(cur)

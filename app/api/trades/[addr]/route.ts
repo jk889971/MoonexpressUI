@@ -1,28 +1,10 @@
+//api/trades/[addr]/route.ts
+import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 
 async function getDb() {
   const mod = await import('@/lib/db')
   return mod.prisma as typeof import('@/lib/db').prisma
-}
-
-/*────────────────────────────  POST  ────────────────────────────*/
-export async function POST(
-  req: Request,
-  { params }: { params: { addr: string } },
-) {
-  const prisma         = await getDb()
-  const launchAddress  = params.addr.toLowerCase()
-  const { wallet, type, txHash } = await req.json()
-
-  if (!wallet || !type || !txHash)
-    return new Response('Bad request', { status: 400 })
-
-  await prisma.trade.upsert({
-    where  : { txHash },
-    update : {},
-    create : { launchAddress, wallet, type, txHash, pending: true },
-  })
-  return new Response(null, { status: 201 })
 }
 
 /*────────────────────────────  PATCH  ───────────────────────────*/
@@ -75,15 +57,36 @@ export async function PATCH(req: Request) {
         where: { launchAddress_bucketMs_kind: { launchAddress, bucketMs, kind } },
       })
 
-      const high = existing ? Prisma.Decimal.max(existing.high, val) : val
-      const low  = existing ? Prisma.Decimal.min(existing.low,  val) : val
-      const open = existing ? existing.open                        : val
-
-      await prisma.priceBar.upsert({
-        where : { launchAddress_bucketMs_kind: { launchAddress, bucketMs, kind } },
-        create: { launchAddress, bucketMs, kind, open, high, low, close: val, mcapUsd: mcapDec },
-        update: { high, low, close: val, mcapUsd: mcapDec },
-      })
+      if (existing) {
+        // Update existing bar with new values
+        const high = Prisma.Decimal.max(existing.high, val)
+        const low  = Prisma.Decimal.min(existing.low, val)
+        
+        await prisma.priceBar.update({
+          where: { launchAddress_bucketMs_kind: { launchAddress, bucketMs, kind } },
+          data: { 
+            high, 
+            low, 
+            close: val,
+            mcapUsd: mcapDec  // Update to current mcap
+          },
+        })
+      } else {
+        // Create NEW bar with all values initialized properly
+        await prisma.priceBar.create({
+          data: {
+            launchAddress,
+            bucketMs,
+            kind,
+            open: val,   // First value = open
+            high: val,   // First value = high
+            low: val,    // First value = low
+            close: val,  // First value = close
+            mcapUsd: mcapDec,
+            volume: new Prisma.Decimal(0)  // Volume not used for OHLC
+          },
+        })
+      }
     }
 
     /* price row + mcap row */
