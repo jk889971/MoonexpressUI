@@ -222,6 +222,9 @@ export default function TradingPanel({
         blockTimestamp: ts,
         priceUsd:      priceUsdStr,
         mcapUsd:       mcapUsdStr,
+        volume: tradingTab === "buy" 
+        ? formatEther(bnbSpent) 
+        : tokenAmount.toString()
       }),
     });
 
@@ -309,6 +312,9 @@ export default function TradingPanel({
         blockTimestamp: ts,
         priceUsd:      priceUsdStr,
         mcapUsd:       mcapUsdStr,
+        volume: tradingTab === "buy" 
+        ? formatEther(bnbSpent) 
+        : tokenAmount.toString()
       }),
     });
 
