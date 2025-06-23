@@ -1,69 +1,92 @@
-//  ─── Generator ───────────────────────────────────────────────────────────
 generator client {
   provider = "prisma-client-js"
 }
 
-//  ─── Datasource ──────────────────────────────────────────────────────────
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-//  ─── Models ──────────────────────────────────────────────────────────────
+/*────────────────────────── MODELS ──────────────────────────*/
+
 model Launch {
-  launchAddress String   @id @db.VarChar(42)
-  tokenAddress  String   @db.VarChar(42)
-  description   String?  @db.Text
-  twitterUrl    String?  @db.VarChar(255)
-  telegramUrl   String?  @db.VarChar(255)
-  websiteUrl    String?  @db.VarChar(255)
-  deployBlock   Int      @default(0)
+  launchAddress String @id            // 42-char hex
+  tokenAddress  String
+  description   String?
+  twitterUrl    String?
+  telegramUrl   String?
+  websiteUrl    String?
+  deployBlock   Int     @default(0)
   createdAt     DateTime @default(now())
-  comments      Comment[]
-  trades        Trade[]
+
+  comments Comment[]
+  trades   Trade[]
+  priceBars PriceBar[]
 
   @@index([launchAddress])
 }
 
 model Profile {
-  wallet      String   @id @db.VarChar(42)
+  wallet      String @id              // 42-char hex
   avatarIndex Int
   comments    Comment[]
 }
 
 model Trade {
-  id            Int      @id @default(autoincrement())
-  launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
-  launchAddress String   @db.VarChar(42)
+  id            Int     @id @default(autoincrement())
+  launch        Launch  @relation(fields: [launchAddress], references: [launchAddress])
+  launchAddress String
+  wallet        String
+  type          String              // “Buy” / “Sell”
 
-  wallet        String   @db.VarChar(42)
-  type          String               // "Buy" | "Sell"
+  bnbAmount     Decimal  @default(0)  // numeric in Postgres
+  tokenAmount   Decimal  @default(0)
 
-  bnbAmount   Decimal @db.Decimal(24, 18) @default(0)
-  tokenAmount Decimal @db.Decimal(32, 0)  @default(0)
+  priceUsd      Decimal  @default(0)
+  mcapUsd       Decimal  @default(0)
 
-  txHash        String   @unique @db.VarChar(66)
-
-  pending       Boolean  @default(true)  // ← new flag
-  createdAt     DateTime @default(now()) // will be overwritten with block-time
+  txHash        String  @unique
+  pending       Boolean @default(true)
+  createdAt     DateTime @default(now())
 
   @@index([launchAddress, createdAt])
 }
 
 model Comment {
-  id            Int      @id @default(autoincrement())
-  launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
-  launchAddress String   @db.VarChar(42)
+  id            Int     @id @default(autoincrement())
+  launch        Launch  @relation(fields: [launchAddress], references: [launchAddress])
+  launchAddress String
 
   parentId      Int?
   parent        Comment? @relation("CommentReplies", fields: [parentId], references: [id])
   replies       Comment[] @relation("CommentReplies")
 
-  wallet        String   @db.VarChar(42)
-  profile       Profile  @relation(fields: [wallet], references: [wallet])
+  wallet        String
+  profile       Profile @relation(fields: [wallet], references: [wallet])
 
-  text          String   @db.Text
+  text          String
   createdAt     DateTime @default(now())
 
   @@index([launchAddress])
+}
+
+/*────────────────────────── NEW TABLE ───────────────────────*/
+
+model PriceBar {
+  id            Int     @id @default(autoincrement())
+
+  launch        Launch  @relation(fields: [launchAddress], references: [launchAddress])
+  launchAddress String
+
+  bucketMs      BigInt              // start-of-minute, ms
+
+  open          Decimal
+  high          Decimal
+  low           Decimal
+  close         Decimal
+
+  mcapUsd       Decimal             // 2-dec places fine
+
+  @@unique([launchAddress, bucketMs])
+  @@index([launchAddress, bucketMs])
 }

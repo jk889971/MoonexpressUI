@@ -1,202 +1,127 @@
 //lib/curveDataFeed.ts
-import { createPublicClient, http, parseAbiItem } from 'viem';
-import launchAbi from '@/lib/abis/CurveLaunch.json';
-import { bscTestnet } from '@/lib/chain';
+
+/**********************************************************************
+ *  Ultra-light TradingView data-feed that talks to our /api/bars route
+ *********************************************************************/
 
 type Bar = {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
+  time     : number     // ms
+  open     : number
+  high     : number
+  low      : number
+  close    : number
+  volume   : number
+  mcapUsd? : number
+}
 
-const MIN = 60_000;
-const WINDOW = 49_000n;
-
-const bucket = (ms: number) => ms - (ms % MIN);
-
-const PRICE_EVT = parseAbiItem('event PriceUpdate(uint256 priceUsd,uint256 timestamp)');
-const MARKETCAP_EVT = parseAbiItem('event MarketCapUpdate(uint256 marketCapUsd, uint256 timestamp)');
-
-// Helper to create datafeeds
-function createFeed(
-  launch: `0x${string}`,
-  deployBlock: bigint,
-  event: any,
-  readFn: 'getCurrentPriceUsd' | 'getLiveMarketCapUsd',
-  symbolConfig: {
-    name: string;
-    ticker: string;
-    description: string;
-    pricescale: number;
-  }
+/**
+ * Create a data-feed instance.
+ *
+ * @param launchAddr  0xLaunchAddress
+ * @param symbol      e.g. "MOON"
+ * @param kind        "price" | "mcap"
+ */
+export function makeFeed(
+  launchAddr: string,
+  symbol: string,
+  kind: 'price' | 'mcap',
 ) {
-  // first see if we have a custom RPC URL
-  const rpcUrl = process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL
-    || 'https://bsc-testnet-rpc.bnbchain.org'; // fallback
+  /* ───── helpers ───── */
+  const TV_NAME  = kind === 'price' ? `${symbol}/USD` : `${symbol}/MC`
+  const SCALE    = kind === 'price' ? 1e-8 : 1e-2        // matches DB storage
+  const cache    = new Map<number, Bar>()                // key = bucketMs
+  const timers   : Record<string, NodeJS.Timeout> = {}
+  let newest     = 0                                     // latest bucketMs seen
 
-  const client = createPublicClient({
-    chain: bscTestnet,
-    transport: http(rpcUrl),
-  });
+  async function fetchBars(from: number, to: number, res: string) {
+    const url =
+      `/api/bars/${launchAddr}` +
+      `?from=${from}&to=${to}&res=${res}`
 
-  const isMarketcap = readFn === 'getLiveMarketCapUsd';
-  const divisor = isMarketcap ? 1e26 : 1e8;
-
-  const readValue = async () => {
-    const value = await client.readContract({
-      address: launch,
-      abi: launchAbi,
-      functionName: readFn,
-    });
-    return Number(value) / divisor;
-  };
-
-  const bars: Bar[] = [];
-
-  async function loadHistory() {
-    if (bars.length) return;
-
-    const latest = await client.getBlockNumber();
-    for (let from = deployBlock; from <= latest; from += WINDOW) {
-      const to = from + WINDOW > latest ? latest : from + WINDOW;
-      const logs = await client.getLogs({ address: launch, event, fromBlock: from, toBlock: to });
-
-      for (const log of logs) {
-        const { priceUsd, marketCapUsd, timestamp } = log.args as any;
-        const args = log.args as any;
-        const rawValue = args.priceUsd !== undefined ? args.priceUsd : args.marketCapUsd;
-        const value = Number(rawValue) / (isMarketcap ? 1e26 : 1e8);
-        
-        const t = bucket(Number(timestamp) * 1000);
-        const last = bars[bars.length - 1];
-
-        if (!last || t > last.time) {
-          bars.push({
-            time: t,
-            open: last?.close ?? value,
-            high: value,
-            low: value,
-            close: value,
-            volume: 0,
-          });
-        } else {
-          last.high = Math.max(last.high, value);
-          last.low = Math.min(last.low, value);
-          last.close = value;
-        }
-      }
-    }
-
-    if (!bars.length) {
-      bars.push({
-        time: bucket(Date.now()),
-        open: 0, high: 0, low: 0, close: 0, volume: 0
-      });
-    }
+    const rows: Bar[] = await fetch(url).then(r => r.json())
+    for (const b of rows) cache.set(b.time, b)
+    if (rows.length) newest = Math.max(newest, rows.at(-1)!.time)
+    return rows
   }
 
-  const timers: Record<string, NodeJS.Timeout> = {};
-
-  function startPolling(cb: (b: Bar) => void) {
-    return setInterval(async () => {
-      const value = await readValue();
-      const stamp = bucket(Date.now());
-      const last = bars[bars.length - 1];
-
-      if (!last || stamp > last.time) {
-        bars.push({
-          time: stamp,
-          open: last?.close ?? value,
-          high: value,
-          low: value,
-          close: value,
-          volume: 0,
-        });
-      } else {
-        last.high = Math.max(last.high, value);
-        last.low = Math.min(last.low, value);
-        last.close = value;
-      }
-      cb(bars[bars.length - 1]);
-    }, 1_000);
-  }
-
+  /* ───── mandatory TV interface ───── */
   return {
-    onReady(cb: any) {
-      setTimeout(() => cb({
-        supported_resolutions: ['1','5','15','30','60','240','360','720','1440'],
-        supports_time: true,
-        history_depth: '7D',
-      }), 0);
+    /* 1. exchange capabilities */
+    onReady(cb: (x: any) => void) {
+      setTimeout(
+        () =>
+          cb({
+            supported_resolutions: [
+              '1', '5', '15', '30', '60', '240', '720', '1440',
+            ],
+            supports_time: true,
+          }),
+        0,
+      )
     },
 
-    resolveSymbol(_sym: string, onResolve: any) {
-      setTimeout(() => onResolve({
-        name: symbolConfig.name,
-        ticker: symbolConfig.ticker,
-        description: symbolConfig.description,
-        exchange: 'Moonexpress',
-        type: 'crypto',
-        session: '24x7',
-        timezone: 'Etc/UTC',
-        minmov: 1,
-        pricescale: symbolConfig.pricescale,
-        has_intraday: true,
-        intraday_multipliers: ['1','5','15','30','60'],
-        supported_resolutions: ['1','5','15','30','60','240','360','720','1440'],
-        data_status: 'streaming',
-      }), 0);
+    /* 2. symbol lookup / meta */
+    resolveSymbol(_sym: string, cb: (info: any) => void) {
+      setTimeout(
+        () =>
+          cb({
+            name: TV_NAME,
+            ticker: TV_NAME,
+            description: TV_NAME,
+            type: 'crypto',
+            session: '24x7',
+            timezone: 'Etc/UTC',
+            pricescale: SCALE,
+            minmov: 1,
+            has_intraday: true,
+            supported_resolutions: [
+              '1', '5', '15', '30', '60', '240', '720', '1440',
+            ],
+            data_status: 'streaming',
+          }),
+        0,
+      )
     },
 
-    async getBars(_i: any, _r: string, { from, to }: { from: number; to: number }, onHist: any) {
-      await loadHistory();
-      const fromMs = from * 1000, toMs = to * 1000;
-      const slice = bars.filter(b => b.time >= fromMs && b.time <= toMs);
-      onHist(slice, { noData: slice.length === 0 });
+    /* 3. historical request */
+    async getBars(
+      _sym: any,
+      res: string,
+      range: { from: number; to: number },
+      cb: (bars: Bar[], meta: { noData: boolean }) => void,
+    ) {
+      const rows = await fetchBars(range.from, range.to, res)
+      cb(rows, { noData: rows.length === 0 })
     },
 
-    subscribeBars(_s: any, _r: string, onRT: (b: Bar) => void, uid: string) {
-      timers[uid] = startPolling(onRT);
+    /* 4. real-time subscription */
+    subscribeBars(
+      _sym: any,
+      res: string,
+      onBar: (b: Bar) => void,
+      uid: string,
+    ) {
+      /* poll every second – TradingView tolerates this fine */
+      timers[uid] = setInterval(async () => {
+        const now = Math.floor(Date.now() / 1_000)
+        const rows = await fetchBars(now - 180, now, res) // last 3-min window
+        if (!rows.length) return
+
+        const last = rows.at(-1)!
+        if (last.time > newest) {
+          newest = last.time
+          onBar(last)            // new bucket
+        } else {
+          // existing bucket update – clone to avoid mutating cache
+          onBar({ ...cache.get(last.time)! })
+        }
+      }, 1_000)
     },
-    
+
+    /* 5. clean-up */
     unsubscribeBars(uid: string) {
-      clearInterval(timers[uid]);
-      delete timers[uid];
+      clearInterval(timers[uid])
+      delete timers[uid]
     },
-  };
-}
-
-// Price Datafeed
-export function makePriceFeed(launch: `0x${string}`, deployBlock: bigint = 0n, symbol:string) {
-  return createFeed(
-    launch,
-    deployBlock,
-    PRICE_EVT,
-    'getCurrentPriceUsd',
-    {
-      name: `${symbol}/USD`,
-      ticker: `${symbol}/USD`,
-      description: `${symbol}/USD (Bonding Curve)`,
-      pricescale: 100_000_000,
-    }
-  );
-}
-
-// Marketcap Datafeed
-export function makeMarketcapFeed(launch: `0x${string}`, deployBlock: bigint = 0n, symbol:string) {
-  return createFeed(
-    launch,
-    deployBlock,
-    MARKETCAP_EVT,
-    'getLiveMarketCapUsd',
-    {
-      name: `${symbol}/MC`,
-      ticker: `${symbol}/MC`,
-      description: `${symbol} Market Cap (USD)`,
-      pricescale: 100,
-    }
-  );
+  }
 }

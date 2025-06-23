@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { widget, ChartingLibraryWidgetOptions, TimeFrameItem } from 'charting_library';
-import { makePriceFeed, makeMarketcapFeed } from '@/lib/curveDataFeed';
+import { makeFeed } from '@/lib/curveDataFeed'
 
 export default function TokenChart({
   launchAddress,
@@ -20,15 +20,16 @@ export default function TokenChart({
   // Toggle between price and market-cap
   const [chartType, setChartType] = useState<'price' | 'marketcap'>('price');
 
-  // Memoize both feeds
-  const priceFeed     = useMemo(
-    () => makePriceFeed(launchAddress, deployBlock ?? 0n, symbol),
-    [launchAddress, deployBlock, symbol]
+  // Memo-ise the single feed that points at our /api/bars endpoint
+  const datafeed = useMemo(
+    () => makeFeed(
+          launchAddress,
+          symbol,
+          chartType === 'price' ? 'price' : 'mcap',
+        ),
+    [launchAddress, symbol, chartType],
   );
-  const marketcapFeed = useMemo(
-    () => makeMarketcapFeed(launchAddress, deployBlock ?? 0n, symbol),
-    [launchAddress, deployBlock, symbol]
-  );
+
   const widgetSym = useMemo(
     () => (chartType === 'price' ? `${symbol}/USD` : `${symbol}/MC`),
     [chartType, symbol]
@@ -37,7 +38,6 @@ export default function TokenChart({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const datafeed = chartType === 'price' ? priceFeed : marketcapFeed;
     const timeFrames: TimeFrameItem[] = [
       { text: '1m',  resolution: '1',    description: '1 minute'   },
       { text: '5m',  resolution: '5',    description: '5 minutes'  },
@@ -100,7 +100,7 @@ export default function TokenChart({
     });
 
     return () => tv.remove();
-  }, [chartType, widgetSym]);
+  }, [chartType, widgetSym, datafeed]);
 
   return <div ref={containerRef} className="h-[30rem] w-full max-[370px]:h-[32rem]" />;
 }

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient } from "wagmi";
 import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json";
-import { parseEther, parseUnits, decodeEventLog, formatEther } from "viem";
+import { parseEther, parseUnits, decodeEventLog, formatEther, formatUnits } from "viem";
 import { bscTestnet } from "@/lib/chain";
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -172,16 +172,27 @@ export default function TradingPanel({
 
     /* 5️⃣ decode event */
     let bnbSpent = 0n, tokenWei = 0n;
+    let priceRaw = 0n, mcapRaw = 0n;
     for (const log of receipt.logs) {
       try {
         const dec = decodeEventLog({ abi: launchAbi, data: log.data, topics: log.topics, strict: true });
         if (dec.eventName === 'TokensBought') {
           bnbSpent = dec.args.bnbSpent;
           tokenWei = dec.args.tokenAmount;
-          break;
+        }
+        if (dec.eventName === 'PriceUpdate') {
+          priceRaw = dec.args.priceUsd;
+        }
+        if (dec.eventName === 'MarketCapUpdate') {
+          mcapRaw  = dec.args.marketCapUsd;
         }
       } catch {}
     }
+
+    /* convert raw uint256 → string, matching DB scale */
+  const priceUsdStr = formatUnits(priceRaw, 8);            // 8-dec -> "0.01234567"
+  const mcapUsdStr  = Number(formatUnits(mcapRaw, 26))      // 26-dec
+                         .toFixed(2);                      // keep cents
 
     /* 6️⃣ finalise the row */
     await fetch(`/api/trades/${launchAddress}`, {
@@ -192,6 +203,8 @@ export default function TradingPanel({
         bnbAmount:     formatEther(bnbSpent),
         tokenAmount:   formatEther(tokenWei),
         blockTimestamp: ts,
+        priceUsd:      priceUsdStr,
+        mcapUsd:       mcapUsdStr,
       }),
     });
 
@@ -232,15 +245,24 @@ export default function TradingPanel({
 
     /* 4️⃣ decode */
     let userGets = 0n;
+    let priceRaw = 0n, mcapRaw = 0n;
     for (const log of receipt.logs) {
       try {
         const dec = decodeEventLog({ abi: launchAbi, data: log.data, topics: log.topics, strict: true });
         if (dec.eventName === 'TokensSold') {
           userGets = dec.args.userGets;
-          break;
+        }
+        if (dec.eventName === 'PriceUpdate') {
+          priceRaw = dec.args.priceUsd;
+        }
+        if (dec.eventName === 'MarketCapUpdate') {
+          mcapRaw  = dec.args.marketCapUsd;
         }
       } catch {}
     }
+
+    const priceUsdStr = formatUnits(priceRaw, 8);
+    const mcapUsdStr  = Number(formatUnits(mcapRaw, 26)).toFixed(2);
 
     /* 5️⃣ final PATCH */
     await fetch(`/api/trades/${launchAddress}`, {
@@ -251,6 +273,8 @@ export default function TradingPanel({
         bnbAmount:     formatEther(userGets),
         tokenAmount:   sellInt.toString(),
         blockTimestamp: ts,
+        priceUsd:      priceUsdStr,
+        mcapUsd:       mcapUsdStr,
       }),
     });
 
