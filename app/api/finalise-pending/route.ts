@@ -4,7 +4,7 @@ import { bscTestnet } from '@/lib/chain'
 import launchAbi      from '@/lib/abis/CurveLaunch.json'
 import { prisma }     from '@/lib/db'
 
-export const runtime = 'edge'          // Vercel Edge Function (cheap & fast)
+export const runtime = 'nodejs'
 
 const client = createPublicClient({
   chain: bscTestnet,
