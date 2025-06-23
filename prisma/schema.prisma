@@ -73,20 +73,18 @@ model Comment {
 /*────────────────────────── NEW TABLE ───────────────────────*/
 
 model PriceBar {
-  id            Int     @id @default(autoincrement())
-
-  launch        Launch  @relation(fields: [launchAddress], references: [launchAddress])
+  id            Int      @id @default(autoincrement())
+  launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
   launchAddress String
-
-  bucketMs      BigInt              // start-of-minute, ms
+  bucketMs      BigInt
+  kind          String
 
   open          Decimal
   high          Decimal
   low           Decimal
   close         Decimal
+  mcapUsd       Decimal
 
-  mcapUsd       Decimal             // 2-dec places fine
-
-  @@unique([launchAddress, bucketMs])
-  @@index([launchAddress, bucketMs])
+  @@unique([launchAddress, bucketMs, kind])
+  @@index([launchAddress, bucketMs, kind])
 }

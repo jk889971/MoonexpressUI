@@ -38,7 +38,9 @@ export function makeFeed(
       `/api/bars/${launchAddr}` +
       `?from=${from}&to=${to}&res=${res}`
 
-    const rows: Bar[] = await fetch(url).then(r => r.json())
+    const rows = await fetch(
+      `/api/bars/${launchAddr}?from=${from}&to=${to}&res=${res}&kind=${kind}`
+    ).then(r => r.json());
     for (const b of rows) cache.set(b.time, b)
     if (rows.length) newest = Math.max(newest, rows.at(-1)!.time)
     return rows

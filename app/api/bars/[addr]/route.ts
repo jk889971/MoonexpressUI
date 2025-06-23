@@ -13,55 +13,45 @@ export async function GET(
   const prisma = await getDb()
 
   const launch  = params.addr.toLowerCase()
+  const kind    = req.nextUrl.searchParams.get('kind') === 'mcap' ? 'mcap' : 'price'
   const fromSec = Number(req.nextUrl.searchParams.get('from') ?? '0')
   const toSec   = Number(req.nextUrl.searchParams.get('to')   ?? Date.now() / 1_000)
-  const resMin  = Number(req.nextUrl.searchParams.get('res')  ?? '1')      // minutes
+  const resMin  = Number(req.nextUrl.searchParams.get('res')  ?? '1')        // minutes
 
-  if (!launch || resMin <= 0) {
-    return NextResponse.json([], { status: 400 })
-  }
+  if (!launch || resMin <= 0) return NextResponse.json([], { status: 400 })
 
-  /*───────────────────────────────────────────────────────────────────────*/
-  /* 0️⃣  convert everything to BigInt once                                */
-  /*───────────────────────────────────────────────────────────────────────*/
-  const fromMs = BigInt(Math.floor(fromSec)) * 1_000n                    // → ms
+  /* ── common BigInt conversions ───────────────────────────────────────── */
+  const fromMs = BigInt(Math.floor(fromSec)) * 1_000n
   const toMs   = BigInt(Math.floor(toSec  )) * 1_000n
-  const spanMs = BigInt(resMin) * 60_000n                                // bucket size
+  const spanMs = BigInt(resMin) * 60_000n                                    // bucket size
 
-  /*───────────────────────────────────────────────────────────────────────*/
-  /* 1️⃣  pull raw 1-minute candles                                        */
-  /*───────────────────────────────────────────────────────────────────────*/
+  /* ── pull 1-minute rows for this series (price || mcap) ──────────────── */
   const rows = await prisma.priceBar.findMany({
-    where: {
+    where : {
       launchAddress: launch,
-      bucketMs: {
-        gte: fromMs,
-        lte: toMs,
-      },
+      kind,                                // <- NEW discriminator
+      bucketMs: { gte: fromMs, lte: toMs },
     },
     orderBy: { bucketMs: 'asc' },
   })
 
-  /*───────────────────────────────────────────────────────────────────────*/
-  /* 2️⃣  aggregate on the fly                                             */
-  /*───────────────────────────────────────────────────────────────────────*/
+  /* ── on-the-fly aggregation into larger buckets ──────────────────────── */
   const out: any[] = []
   let cur: any = null
 
   for (const r of rows) {
-    const bucket = (r.bucketMs / spanMs) * spanMs          // BigInt maths
-    const bucketNum = Number(bucket)                       // -> JS number for TV
+    const bucket   = (r.bucketMs / spanMs) * spanMs
+    const bucketMs = Number(bucket)
 
-    if (!cur || bucketNum > cur.time) {
+    if (!cur || bucketMs > cur.time) {
       if (cur) out.push(cur)
-
       cur = {
-        time   : bucketNum,
-        open   : Number(r.open),
-        high   : Number(r.high),
-        low    : Number(r.low),
-        close  : Number(r.close),
-        volume : 0,
+        time  : bucketMs,
+        open  : Number(r.open),
+        high  : Number(r.high),
+        low   : Number(r.low),
+        close : Number(r.close),
+        volume: 0,
         mcapUsd: Number(r.mcapUsd),
       }
     } else {
