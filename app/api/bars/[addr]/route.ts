@@ -35,64 +35,73 @@ export async function GET(
     orderBy: { bucketMs: 'asc' },
   })
 
-  /* ── on-the-fly aggregation into larger buckets ────────────────────────── */
-  const out: any[] = [];
-
-  let curBucket = Number(((fromMs / spanMs) * spanMs));           // first minute we must return
-  let lastClose: number | null = null;      // we carry the latest close forward
+  /*  ── on-the-fly aggregation into larger buckets ───────────────────────  */
+  const out: any[] = []
+  let cur: any = null
 
   for (const r of rows) {
-    const thisBucket = Number((r.bucketMs / spanMs) * spanMs);   // align row
+    const bucket   = (r.bucketMs / spanMs) * spanMs
+    const bucketMs = Number(bucket)
 
-    /* ①  fill every empty minute **before** the current DB row ------------- */
-    while (curBucket < thisBucket) {
-      if (lastClose !== null) {
-        out.push({
-          time   : curBucket,
-          open   : lastClose,
-          high   : lastClose,
-          low    : lastClose,
-          close  : lastClose,
-          volume : 0,
-          mcapUsd: lastClose,
-        });
+    if (!cur || bucketMs > cur.time) {
+      if (cur) out.push(cur)
+      cur = {
+        time   : bucketMs,
+        open   : Number(r.open),
+        high   : Number(r.high),
+        low    : Number(r.low),
+        close  : Number(r.close),
+        volume : 0,
+        mcapUsd: Number(r.mcapUsd),
       }
-      curBucket += Number(spanMs);          // hop to next expected bucket
+    } else {
+      cur.high    = Math.max(cur.high, Number(r.high))
+      cur.low     = Math.min(cur.low,  Number(r.low))
+      cur.close   = Number(r.close)
+      cur.mcapUsd = Number(r.mcapUsd)
+    }
+  }
+  if (cur) out.push(cur)
+
+  /* ───────────────────────  ⬇️  INSERT THIS BLOCK  ⬇️  ──────────────────── */
+  // 1) quick exit if we got no candles at all
+  if (out.length > 0) {
+    const filled: any[] = []
+
+    // a map for O(1) look-ups:   bucketMs -> candle
+    const map = new Map(out.map(c => [c.time, c]))
+
+    // align the starting pointer to the first bucket we have
+    let ptr = out[0].time
+    const lastNeeded = Number(((toMs / spanMs) * spanMs))  // snap "to" down
+
+    // keep track of the most recent close so we can “flat-line” gaps
+    let prevClose = out[0].open
+
+    while (ptr <= lastNeeded) {
+      const candle = map.get(ptr)
+
+      if (candle) {
+        filled.push(candle)
+        prevClose = candle.close
+      } else {
+        // fabricate a flat bar that keeps the line continuous
+        filled.push({
+          time  : ptr,
+          open  : prevClose,
+          high  : prevClose,
+          low   : prevClose,
+          close : prevClose,
+          volume: 0,
+          mcapUsd: prevClose,   // same field name for both series
+        })
+      }
+      ptr += Number(spanMs)     // hop to the next N-minute bucket
     }
 
-    /* ②  push the real bar from the DB row --------------------------------- */
-    const open  = lastClose === null ? Number(r.open) : lastClose;
-    const high  = Math.max(open, Number(r.high));
-    const low   = Math.min(open, Number(r.low));
-    const close = Number(r.close);
-
-    out.push({
-      time   : thisBucket,
-      open,
-      high,
-      low,
-      close,
-      volume : 0,
-      mcapUsd: Number(r.mcapUsd),
-    });
-
-    lastClose = close;
-    curBucket = thisBucket + Number(spanMs);   // expect the next bucket
+    return NextResponse.json(filled)
   }
+  /* ───────────────────────  ⬆️  INSERT THIS BLOCK  ⬆️  ──────────────────── */
 
-  /* ③  fill the tail up to `toMs` so the very last candle isn’t blank ------- */
-  while (curBucket <= Number(toMs) && lastClose !== null) {
-    out.push({
-      time   : curBucket,
-      open   : lastClose,
-      high   : lastClose,
-      low    : lastClose,
-      close  : lastClose,
-      volume : 0,
-      mcapUsd: lastClose,
-    });
-    curBucket += Number(spanMs);
-  }
-
-  return NextResponse.json(out);
+  return NextResponse.json(out)
 }
