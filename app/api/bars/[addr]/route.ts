@@ -29,79 +29,84 @@ export async function GET(
   const rows = await prisma.priceBar.findMany({
     where : {
       launchAddress: launch,
-      kind,                                // <- NEW discriminator
+      kind,
       bucketMs: { gte: fromMs, lte: toMs },
     },
     orderBy: { bucketMs: 'asc' },
   })
 
-  /*  ── on-the-fly aggregation into larger buckets ───────────────────────  */
-  const out: any[] = []
-  let cur: any = null
+  /* ── Corrected aggregation logic ─────────────────────────────────────── */
+  const out: any[] = [];
+  const bucketMap = new Map<string, Bar>();
 
+  // 1. Group 1-minute bars into target timeframe buckets
   for (const r of rows) {
-    const bucket   = (r.bucketMs / spanMs) * spanMs
-    const bucketMs = Number(bucket)
-
-    if (!cur || bucketMs > cur.time) {
-      if (cur) out.push(cur)
-      cur = {
-        time   : bucketMs,
-        open   : Number(r.open),
-        high   : Number(r.high),
-        low    : Number(r.low),
-        close  : Number(r.close),
-        volume : 0,
-        mcapUsd: Number(r.mcapUsd),
-      }
+    const bucketKey = String((r.bucketMs / spanMs) * spanMs);
+    
+    if (!bucketMap.has(bucketKey)) {
+      bucketMap.set(bucketKey, {
+        time: Number(bucketKey),
+        open: Number(r.open),
+        high: Number(r.high),
+        low: Number(r.low),
+        close: Number(r.close),
+        volume: 0,
+        mcapUsd: Number(r.mcapUsd)
+      });
     } else {
-      cur.high    = Math.max(cur.high, Number(r.high))
-      cur.low     = Math.min(cur.low,  Number(r.low))
-      cur.close   = Number(r.close)
-      cur.mcapUsd = Number(r.mcapUsd)
+      const bar = bucketMap.get(bucketKey)!;
+      bar.high = Math.max(bar.high, Number(r.high));
+      bar.low = Math.min(bar.low, Number(r.low));
+      bar.close = Number(r.close);
+      bar.mcapUsd = Number(r.mcapUsd);
     }
   }
-  if (cur) out.push(cur)
 
-  /* ───────────────────────  ⬇️  INSERT THIS BLOCK  ⬇️  ──────────────────── */
-  // 1) quick exit if we got no candles at all
-  if (out.length > 0) {
-    const filled: any[] = []
+  // 2. Create sorted array of buckets
+  const sortedBuckets = Array.from(bucketMap.values()).sort((a, b) => a.time - b.time);
 
-    // a map for O(1) look-ups:   bucketMs -> candle
-    const map = new Map(out.map(c => [c.time, c]))
+  // 3. Fill gaps between buckets
+  let lastClose: number | null = null;
+  let currentTime = Number(fromMs);
 
-    // align the starting pointer to the first bucket we have
-    let ptr = out[0].time
-    const lastNeeded = Number(((toMs / spanMs) * spanMs))  // snap "to" down
-
-    // keep track of the most recent close so we can “flat-line” gaps
-    let prevClose = out[0].open
-
-    while (ptr <= lastNeeded) {
-      const candle = map.get(ptr)
-
-      if (candle) {
-        filled.push(candle)
-        prevClose = candle.close
-      } else {
-        // fabricate a flat bar that keeps the line continuous
-        filled.push({
-          time  : ptr,
-          open  : prevClose,
-          high  : prevClose,
-          low   : prevClose,
-          close : prevClose,
+  for (const bucket of sortedBuckets) {
+    // Fill gap between current time and this bucket
+    while (currentTime < bucket.time) {
+      if (lastClose !== null) {
+        out.push({
+          time: currentTime,
+          open: lastClose,
+          high: lastClose,
+          low: lastClose,
+          close: lastClose,
           volume: 0,
-          mcapUsd: prevClose,   // same field name for both series
-        })
+          mcapUsd: lastClose
+        });
       }
-      ptr += Number(spanMs)     // hop to the next N-minute bucket
+      currentTime += Number(spanMs);
     }
-
-    return NextResponse.json(filled)
+    
+    // Add the actual bucket
+    out.push(bucket);
+    lastClose = bucket.close;
+    currentTime = bucket.time + Number(spanMs);
   }
-  /* ───────────────────────  ⬆️  INSERT THIS BLOCK  ⬆️  ──────────────────── */
 
-  return NextResponse.json(out)
+  // 4. Fill tail after last bucket
+  while (currentTime <= Number(toMs)) {
+    if (lastClose !== null) {
+      out.push({
+        time: currentTime,
+        open: lastClose,
+        high: lastClose,
+        low: lastClose,
+        close: lastClose,
+        volume: 0,
+        mcapUsd: lastClose
+      });
+    }
+    currentTime += Number(spanMs);
+  }
+
+  return NextResponse.json(out);
 }
