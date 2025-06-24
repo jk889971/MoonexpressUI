@@ -103,10 +103,12 @@ export function makeFeed(
       onBar: (b: Bar) => void,
       uid: string,
     ) {
-      /* poll every second – TradingView tolerates this fine */
+      const secondsPerCandle = parseInt(res, 10) * 60        // "1" → 60, "5" → 300 …
+      const lookBack         = Math.max(secondsPerCandle * 2, 180)
+
       timers[uid] = setInterval(async () => {
         const now = Math.floor(Date.now() / 1_000)
-        const rows = await fetchBars(now - 180, now, res) // last 3-min window
+        const rows = await fetchBars(now - lookBack, now, res)
         if (!rows.length) return
 
         const last = rows.at(-1)!
