@@ -38,7 +38,7 @@ export async function GET(
   /* ── on-the-fly aggregation into larger buckets ────────────────────────── */
   const out: any[] = [];
 
-  let curBucket = Number(fromMs);           // first minute we must return
+  let curBucket = Number(((fromMs / spanMs) * spanMs));           // first minute we must return
   let lastClose: number | null = null;      // we carry the latest close forward
 
   for (const r of rows) {
