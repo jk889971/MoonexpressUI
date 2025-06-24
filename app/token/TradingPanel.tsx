@@ -207,7 +207,7 @@ export default function TradingPanel({
         blockTimestamp: ts,
         priceUsd   : Number(priceUsdBig) / 1e8,   // may be 0
         priceTs    : Number(priceTs),
-        mcapUsd    : Number(mcapUsdBig)  / 1e8,   // may be 0
+        mcapUsd    : Number(mcapUsdBig)  / 1e26,   // may be 0
         mcapTs     : Number(mcapTs),
         blockNumber: Number(receipt.blockNumber),
       }),
@@ -281,7 +281,7 @@ export default function TradingPanel({
         blockTimestamp: ts,
         priceUsd   : Number(priceUsdBig) / 1e8,   // may be 0
         priceTs    : Number(priceTs),
-        mcapUsd    : Number(mcapUsdBig)  / 1e8,   // may be 0
+        mcapUsd    : Number(mcapUsdBig)  / 1e26,   // may be 0
         mcapTs     : Number(mcapTs),
         blockNumber: Number(receipt.blockNumber),
       }),

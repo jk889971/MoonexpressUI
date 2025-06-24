@@ -18,7 +18,7 @@ import {
   useAccount,
   useBalance,
 } from 'wagmi'
-import { parseEther, formatEther, decodeEventLog, encodeEventTopics } from "viem"
+import { parseEther, formatEther, decodeEventLog, encodeEventTopics, parseAbiItem } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
 import launchAbi from "@/lib/abis/CurveLaunch.json"
@@ -56,6 +56,14 @@ export default function CreateTokenForm() {
 
   const [tokensBoughtTopic] = useMemo(
     () => encodeEventTopics({ abi: launchAbi, eventName: 'TokensBought' }),
+    []
+  )
+  const [priceUpdateTopic] = useMemo(
+    () => encodeEventTopics({ abi: launchAbi, eventName: 'PriceUpdate' }),
+    []
+  )
+  const [mcapUpdateTopic] = useMemo(
+    () => encodeEventTopics({ abi: launchAbi, eventName: 'MarketCapUpdate' }),
     []
   )
 
@@ -356,51 +364,81 @@ export default function CreateTokenForm() {
       // 2) If the creator pre‐bought, grab the very first TokensBought event
       if (creatorPreBuys && Number(preBuyAmount) > 0) {
         try {
-          const logs = await customrpc.getLogs({
+          /* ── small helpers ───────────────────────────── */
+          const get = (topic0: `0x${string}`) =>
+          customrpc.getLogs({
             address:   launchAddr,
             fromBlock: receipt.blockNumber,
             toBlock:   receipt.blockNumber,
-            topics:    [tokensBoughtTopic],
-          })
+            topics:    [topic0],        // ← one-topic filter
+          });
 
-          if (logs.length > 0) {
-          const { args } = decodeEventLog({
+          /* ── 1) TokensBought ─────────────────────────── */
+          const boughtLogs = await get(tokensBoughtTopic);
+          if (!boughtLogs.length) throw new Error('TokensBought not found');
+
+          const boughtDec = decodeEventLog({
             abi:    launchAbi,
-            data:   logs[0].data,
-            topics: logs[0].topics,
+            data:   boughtLogs[0].data,
+            topics: boughtLogs[0].topics,
             strict: true,
-          })
+          });
+          const buyer       = (boughtDec.args.buyer as string).toLowerCase();
+          const bnbSpent    = boughtDec.args.bnbSpent      as bigint;
+          const tokenWei    = boughtDec.args.tokenAmount   as bigint;
+          const txHash      = boughtLogs[0].transactionHash;
 
-                  const buyer       = (args.buyer as string).toLowerCase()
-          const bnbSpent    = args.bnbSpent  as bigint
-          const tokenWei    = args.tokenAmount as bigint
-          const txHash      = logs[0].transactionHash
+          /* ── 2) PriceUpdate  (optional) ─────────────── */
+          let priceUsdBig = 0n, priceTs = 0n;
+          const priceLogs = await get(priceUpdateTopic);
+          if (priceLogs.length) {
+            const dec = decodeEventLog({
+              abi: launchAbi, data: priceLogs[0].data, topics: priceLogs[0].topics, strict: true,
+            });
+            priceUsdBig = dec.args.priceUsd  as bigint;
+            priceTs     = dec.args.timestamp as bigint;
+          }
 
-          /* ① placeholder row (pending=true) */
+          /* ── 3) MarketCapUpdate  (optional) ─────────── */
+          let mcapUsdBig = 0n, mcapTs = 0n;
+          const mcapLogs = await get(mcapUpdateTopic);
+          if (mcapLogs.length) {
+            const dec = decodeEventLog({
+              abi: launchAbi, data: mcapLogs[0].data, topics: mcapLogs[0].topics, strict: true,
+            });
+            mcapUsdBig = dec.args.marketCapUsd as bigint;
+            mcapTs     = dec.args.timestamp    as bigint;
+          }
+
+          /* ── 4) placeholder Trade row ───────────────── */
           await fetch(`/api/trades/${launchAddr}`, {
-            method:  "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ wallet: buyer, type: "Buy", txHash }),
-          })
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ wallet: buyer, type: 'Buy', txHash }),
+          });
 
-          /* ② fetch block-timestamp so the row slots in correctly */
-          const blk = await customrpc.getBlock({ blockHash: logs[0].blockHash })
-          const ts  = Number(blk.timestamp)          // seconds
+          /* ── 5) block-time for proper ordering ──────── */
+          const blk = await customrpc.getBlock({ blockHash: boughtLogs[0].blockHash });
+          const ts  = Number(blk.timestamp);          // seconds
 
-          /* ③ finalise the row */
+          /* ── 6) finalise row + snapshots ───────────── */
           await fetch(`/api/trades/${launchAddr}`, {
-            method:  "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+            method : 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({
               txHash,
-              bnbAmount:   formatEther(bnbSpent),
-              tokenAmount: formatEther(tokenWei),
+              bnbAmount   : formatEther(bnbSpent),
+              tokenAmount : formatEther(tokenWei),
               blockTimestamp: ts,
+              priceUsd    : Number(priceUsdBig) / 1e8,
+              priceTs     : Number(priceTs),
+              mcapUsd     : Number(mcapUsdBig)  / 1e8,
+              mcapTs      : Number(mcapTs),
+              blockNumber : Number(receipt.blockNumber),
             }),
-          })
-        }
+          });
         } catch (err) {
-          console.error("Trade indexing failed:", err)
+          console.error('Trade indexing failed:', err);
         }
       }
 
