@@ -49,7 +49,8 @@ export function makeFeed(
       };
       cache.set(bar.time, bar);
     }
-    return rows.map(r => ({ ...r, time: toBarTime(r.time, res) }));
+    return rows.map(r => ({ ...r, time: toBarTime(r.time, res) }))
+      .sort((a, b) => a.time - b.time);
   }
 
   /* ───── mandatory TV interface ───── */
@@ -100,7 +101,10 @@ export function makeFeed(
       const secondsPerCandle = parseInt(res, 10) * 60;
       const lookBackSec      = Math.max(secondsPerCandle * 2, 180);
 
+      let inFlight = false;
       timers[uid] = setInterval(async () => {
+        if (inFlight) return;
+        inFlight = true;
         const nowMs   = Date.now();
         const rows    = await fetchBars(nowMs - lookBackSec * 1000, nowMs, res);
         if (!rows.length) return;
@@ -115,6 +119,7 @@ export function makeFeed(
           onBar({ ...cache.get(last.time)! });          // update same candle
         }
         // if last.time < lastEmitted → drop; never go backwards
+        inFlight = false;
       }, 1000);
     },
 
