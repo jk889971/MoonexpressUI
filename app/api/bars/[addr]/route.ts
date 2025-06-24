@@ -35,33 +35,64 @@ export async function GET(
     orderBy: { bucketMs: 'asc' },
   })
 
-  /* ── on-the-fly aggregation into larger buckets ──────────────────────── */
-  const out: any[] = []
-  let cur: any = null
+  /* ── on-the-fly aggregation into larger buckets ────────────────────────── */
+  const out: any[] = [];
+
+  let curBucket = Number(fromMs);           // first minute we must return
+  let lastClose: number | null = null;      // we carry the latest close forward
 
   for (const r of rows) {
-    const bucket   = (r.bucketMs / spanMs) * spanMs
-    const bucketMs = Number(bucket)
+    const thisBucket = Number((r.bucketMs / spanMs) * spanMs);   // align row
 
-    if (!cur || bucketMs > cur.time) {
-      if (cur) out.push(cur)
-      cur = {
-        time  : bucketMs,
-        open  : Number(r.open),
-        high  : Number(r.high),
-        low   : Number(r.low),
-        close : Number(r.close),
-        volume: 0,
-        mcapUsd: Number(r.mcapUsd),
+    /* ①  fill every empty minute **before** the current DB row ------------- */
+    while (curBucket < thisBucket) {
+      if (lastClose !== null) {
+        out.push({
+          time   : curBucket,
+          open   : lastClose,
+          high   : lastClose,
+          low    : lastClose,
+          close  : lastClose,
+          volume : 0,
+          mcapUsd: lastClose,
+        });
       }
-    } else {
-      cur.high    = Math.max(cur.high, Number(r.high))
-      cur.low     = Math.min(cur.low,  Number(r.low))
-      cur.close   = Number(r.close)
-      cur.mcapUsd = Number(r.mcapUsd)
+      curBucket += Number(spanMs);          // hop to next expected bucket
     }
-  }
-  if (cur) out.push(cur)
 
-  return NextResponse.json(out)
+    /* ②  push the real bar from the DB row --------------------------------- */
+    const open  = lastClose === null ? Number(r.open) : lastClose;
+    const high  = Math.max(open, Number(r.high));
+    const low   = Math.min(open, Number(r.low));
+    const close = Number(r.close);
+
+    out.push({
+      time   : thisBucket,
+      open,
+      high,
+      low,
+      close,
+      volume : 0,
+      mcapUsd: Number(r.mcapUsd),
+    });
+
+    lastClose = close;
+    curBucket = thisBucket + Number(spanMs);   // expect the next bucket
+  }
+
+  /* ③  fill the tail up to `toMs` so the very last candle isn’t blank ------- */
+  while (curBucket <= Number(toMs) && lastClose !== null) {
+    out.push({
+      time   : curBucket,
+      open   : lastClose,
+      high   : lastClose,
+      low    : lastClose,
+      close  : lastClose,
+      volume : 0,
+      mcapUsd: lastClose,
+    });
+    curBucket += Number(spanMs);
+  }
+
+  return NextResponse.json(out);
 }
