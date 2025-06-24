@@ -432,7 +432,7 @@ export default function CreateTokenForm() {
               blockTimestamp: ts,
               priceUsd    : Number(priceUsdBig) / 1e8,
               priceTs     : Number(priceTs),
-              mcapUsd     : Number(mcapUsdBig)  / 1e8,
+              mcapUsd     : Number(mcapUsdBig)  / 1e26,
               mcapTs      : Number(mcapTs),
               blockNumber : Number(receipt.blockNumber),
             }),
