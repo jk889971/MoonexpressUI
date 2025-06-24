@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumber, usePublicClient } from "wagmi";
 import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json";
-import { parseEther, parseUnits, decodeEventLog, formatEther, formatUnits } from "viem";
+import { parseEther, parseUnits, decodeEventLog, formatEther, parseAbiItem } from "viem";
 import { bscTestnet } from "@/lib/chain";
+
+const PRICE_EVT    = parseAbiItem('event PriceUpdate(uint256 priceUsd,uint256 timestamp)');
+const MCAP_EVT     = parseAbiItem('event MarketCapUpdate(uint256 marketCapUsd,uint256 timestamp)');
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
@@ -145,6 +148,9 @@ export default function TradingPanel({
   }
 
   async function handleBuy() {
+    let priceUsdBig = 0n, priceTs = 0n;
+    let mcapUsdBig  = 0n, mcapTs  = 0n;
+
     if (!isValidPositiveNumber(amount)) return;
 
     /* 1️⃣ broadcast & grab tx hash */
@@ -172,7 +178,6 @@ export default function TradingPanel({
 
     /* 5️⃣ decode event */
     let bnbSpent = 0n, tokenWei = 0n;
-    let priceRaw = 0n, mcapRaw = 0n;
     for (const log of receipt.logs) {
       try {
         const dec = decodeEventLog({ abi: launchAbi, data: log.data, topics: log.topics, strict: true });
@@ -180,36 +185,16 @@ export default function TradingPanel({
           bnbSpent = dec.args.bnbSpent;
           tokenWei = dec.args.tokenAmount;
         }
-        if (dec.eventName === 'PriceUpdate') {
-          priceRaw = dec.args.priceUsd;
+        else if (dec.eventName === 'PriceUpdate') {
+          priceUsdBig = dec.args.priceUsd  as bigint;
+          priceTs     = dec.args.timestamp as bigint;
         }
-        if (dec.eventName === 'MarketCapUpdate') {
-          mcapRaw  = dec.args.marketCapUsd;
+        else if (dec.eventName === 'MarketCapUpdate') {
+          mcapUsdBig = dec.args.marketCapUsd as bigint;
+          mcapTs     = dec.args.timestamp    as bigint;
         }
       } catch {}
     }
-
-    // ─── fallback: query the view fns if the events were missing ──────────
-    if (priceRaw === 0n) {
-      priceRaw = await publicClient.readContract({
-        address: launchAddress,
-        abi:     launchAbi,
-        functionName: "getCurrentPriceUsd",
-      });
-    }
-
-    if (mcapRaw === 0n) {
-      mcapRaw = await publicClient.readContract({
-        address: launchAddress,
-        abi:     launchAbi,
-        functionName: "getLiveMarketCapUsd",
-      });
-    }
-
-    /* convert raw uint256 → string, matching DB scale */
-    const priceUsdStr = formatUnits(priceRaw, 8);            // 8-dec -> "0.01234567"
-    const mcapUsdStr  = Number(formatUnits(mcapRaw, 26))      // 26-dec
-                          .toFixed(2);                      // keep cents
 
     /* 6️⃣ finalise the row */
     await fetch(`/api/trades/${launchAddress}`, {
@@ -220,8 +205,11 @@ export default function TradingPanel({
         bnbAmount:     formatEther(bnbSpent),
         tokenAmount:   formatEther(tokenWei),
         blockTimestamp: ts,
-        priceUsd:      priceUsdStr,
-        mcapUsd:       mcapUsdStr,
+        priceUsd   : Number(priceUsdBig) / 1e8,   // may be 0
+        priceTs    : Number(priceTs),
+        mcapUsd    : Number(mcapUsdBig)  / 1e8,   // may be 0
+        mcapTs     : Number(mcapTs),
+        blockNumber: Number(receipt.blockNumber),
       }),
     });
 
@@ -233,6 +221,9 @@ export default function TradingPanel({
   }
 
   async function handleSell() {
+    let priceUsdBig = 0n, priceTs = 0n;
+    let mcapUsdBig  = 0n, mcapTs  = 0n;
+
     if (!canSellNow || !amount || !wallet) return;
 
     const sellInt = Math.floor(Number(amount));
@@ -262,41 +253,22 @@ export default function TradingPanel({
 
     /* 4️⃣ decode */
     let userGets = 0n;
-    let priceRaw = 0n, mcapRaw = 0n;
     for (const log of receipt.logs) {
       try {
         const dec = decodeEventLog({ abi: launchAbi, data: log.data, topics: log.topics, strict: true });
         if (dec.eventName === 'TokensSold') {
           userGets = dec.args.userGets;
         }
-        if (dec.eventName === 'PriceUpdate') {
-          priceRaw = dec.args.priceUsd;
+        else if (dec.eventName === 'PriceUpdate') {
+          priceUsdBig = dec.args.priceUsd  as bigint;
+          priceTs     = dec.args.timestamp as bigint;
         }
-        if (dec.eventName === 'MarketCapUpdate') {
-          mcapRaw  = dec.args.marketCapUsd;
+        else if (dec.eventName === 'MarketCapUpdate') {
+          mcapUsdBig = dec.args.marketCapUsd as bigint;
+          mcapTs     = dec.args.timestamp    as bigint;
         }
       } catch {}
     }
-
-    // ─── fallback: query the view fns if the events were missing ──────────
-    if (priceRaw === 0n) {
-      priceRaw = await publicClient.readContract({
-        address: launchAddress,
-        abi:     launchAbi,
-        functionName: "getCurrentPriceUsd",
-      });
-    }
-
-    if (mcapRaw === 0n) {
-      mcapRaw = await publicClient.readContract({
-        address: launchAddress,
-        abi:     launchAbi,
-        functionName: "getLiveMarketCapUsd",
-      });
-    }
-
-    const priceUsdStr = formatUnits(priceRaw, 8);
-    const mcapUsdStr  = Number(formatUnits(mcapRaw, 26)).toFixed(2);
 
     /* 5️⃣ final PATCH */
     await fetch(`/api/trades/${launchAddress}`, {
@@ -307,8 +279,11 @@ export default function TradingPanel({
         bnbAmount:     formatEther(userGets),
         tokenAmount:   sellInt.toString(),
         blockTimestamp: ts,
-        priceUsd:      priceUsdStr,
-        mcapUsd:       mcapUsdStr,
+        priceUsd   : Number(priceUsdBig) / 1e8,   // may be 0
+        priceTs    : Number(priceTs),
+        mcapUsd    : Number(mcapUsdBig)  / 1e8,   // may be 0
+        mcapTs     : Number(mcapTs),
+        blockNumber: Number(receipt.blockNumber),
       }),
     });
 

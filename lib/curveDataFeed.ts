@@ -1,131 +1,225 @@
-//lib/curveDataFeed.ts
+// lib/curveDataFeed.ts
+import { createPublicClient, http } from 'viem';
+import launchAbi from '@/lib/abis/CurveLaunch.json';
+import { bscTestnet } from '@/lib/chain';
 
-/**********************************************************************
- *  Ultra-light TradingView data-feed that talks to our /api/bars route
- *********************************************************************/
-
+/* ───────────────────────── Types ─────────────────────────── */
 type Bar = {
-  time     : number     // ms
-  open     : number
-  high     : number
-  low      : number
-  close    : number
-  volume   : number
-  mcapUsd? : number
+  time:   number;   // ms bucket
+  open:   number;
+  high:   number;
+  low:    number;
+  close:  number;
+  volume: number;
+};
+
+/* ──────────────────────── Constants ──────────────────────── */
+const MIN   = 60_000;                         // 1-minute buckets
+const bucket = (ms: number) => ms - (ms % MIN);
+
+/* ─────────── Helper to fetch history from the API ────────── */
+async function fetchHistory(
+  launch: string,
+  kind: 'price' | 'mcap',
+  fromSec: number,
+  toSec: number
+): Promise<{ timestamp: number; raw_value: number }[]> {
+  const url =
+    `/api/chart-history?launch=${launch}&kind=${kind}&from=${fromSec}&to=${toSec}`;
+  return fetch(url).then(r => r.json());
 }
 
-/**
- * Create a data-feed instance.
- *
- * @param launchAddr  0xLaunchAddress
- * @param symbol      e.g. "MOON"
- * @param kind        "price" | "mcap"
- */
-export function makeFeed(
-  launchAddr: string,
-  symbol: string,
-  kind: 'price' | 'mcap',
+/* ─────────── Factory that returns a TradingView datafeed ──── */
+function createFeed(
+  launch: `0x${string}`,
+  readFn: 'getCurrentPriceUsd' | 'getLiveMarketCapUsd',
+  symbolCfg: {
+    name: string;
+    ticker: string;
+    description: string;
+    pricescale: number;
+  }
 ) {
-  /* ───── helpers ───── */
-  const TV_NAME  = kind === 'price' ? `${symbol}/USD` : `${symbol}/MC`
-  const SCALE    = kind === 'price' ? 100_000_000 : 100
-  const cache    = new Map<number, Bar>()                // key = bucketMs
-  const timers   : Record<string, NodeJS.Timeout> = {}
-  let newest     = 0                                     // latest bucketMs seen
+  /* RPC client only for live polling */
+  const rpcUrl =
+    process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
+    'https://bsc-testnet-rpc.bnbchain.org';
 
-  async function fetchBars(from: number, to: number, res: string) {
-    const url =
-      `/api/bars/${launchAddr}` +
-      `?from=${from}&to=${to}&res=${res}`
+  const client = createPublicClient({
+    chain: bscTestnet,
+    transport: http(rpcUrl),
+  });
 
-    const rows = await fetch(
-      `/api/bars/${launchAddr}?from=${from}&to=${to}&res=${res}&kind=${kind}`
-    ).then(r => r.json());
-    for (const b of rows) cache.set(b.time, b)
-    if (rows.length) newest = Math.max(newest, rows.at(-1)!.time)
-    return rows
+  const isMarketcap = readFn === 'getLiveMarketCapUsd';
+  const divisor     = isMarketcap ? 1e26 : 1e8;   // chain value → human
+
+  /* read live value from the contract */
+  const readValue = async () => {
+    const v = await client.readContract({
+      address: launch,
+      abi: launchAbi,
+      functionName: readFn,
+    });
+    return Number(v) / divisor;
+  };
+
+  /* ───────────────────── Bar storage ──────────────────── */
+  const bars: Bar[] = [];
+
+  /* ─────────────── History loader (DB) ─────────────────── */
+  async function loadHistory() {
+    if (bars.length) return;               // already loaded
+
+    // Grab *everything* once; you can add paging if needed
+    const fromSec = 0;
+    const toSec   = Math.floor(Date.now() / 1_000);
+    const rows    = await fetchHistory(
+      launch,
+      isMarketcap ? 'mcap' : 'price',
+      fromSec,
+      toSec
+    );
+
+    for (const { timestamp, raw_value } of rows) {
+      const t   = bucket(timestamp * 1_000);  // → ms bucket
+      const val = raw_value;
+      const last = bars[bars.length - 1];
+
+      if (!last || t > last.time) {
+        bars.push({
+          time: t,
+          open: last?.close ?? val,
+          high: val,
+          low : val,
+          close: val,
+          volume: 0,
+        });
+      } else {
+        last.high  = Math.max(last.high, val);
+        last.low   = Math.min(last.low,  val);
+        last.close = val;
+      }
+    }
+
+    /* guarantee at least one empty bar */
+    if (!bars.length) {
+      bars.push({
+        time: bucket(Date.now()),
+        open: 0, high: 0, low: 0, close: 0, volume: 0,
+      });
+    }
   }
 
-  /* ───── mandatory TV interface ───── */
+  /* ───────────── Real-time polling timer ──────────────── */
+  const timers: Record<string, NodeJS.Timeout> = {};
+
+  function startPolling(cb: (b: Bar) => void) {
+    return setInterval(async () => {
+      const val   = await readValue();
+      const stamp = bucket(Date.now());
+      const last  = bars[bars.length - 1];
+
+      if (!last || stamp > last.time) {
+        bars.push({
+          time: stamp,
+          open: last?.close ?? val,
+          high: val,
+          low : val,
+          close: val,
+          volume: 0,
+        });
+      } else {
+        last.high  = Math.max(last.high, val);
+        last.low   = Math.min(last.low,  val);
+        last.close = val;
+      }
+      cb(bars[bars.length - 1]);
+    }, 1_000);
+  }
+
+  /* ──────────── Public TradingView feed API ───────────── */
   return {
-    /* 1. exchange capabilities */
-    onReady(cb: (x: any) => void) {
+    onReady(cb: any) {
       setTimeout(
         () =>
           cb({
-            supported_resolutions: [
-              '1', '5', '15', '30', '60', '240', '720', '1440',
-            ],
+            supported_resolutions: ['1', '5', '15', '30', '60', '240', '360', '720', '1440'],
             supports_time: true,
+            history_depth: '7D',
           }),
-        0,
-      )
+        0
+      );
     },
 
-    /* 2. symbol lookup / meta */
-    resolveSymbol(_sym: string, cb: (info: any) => void) {
+    resolveSymbol(_sym: string, onResolve: any) {
       setTimeout(
         () =>
-          cb({
-            name: TV_NAME,
-            ticker: TV_NAME,
-            description: TV_NAME,
+          onResolve({
+            name: symbolCfg.name,
+            ticker: symbolCfg.ticker,
+            description: symbolCfg.description,
+            exchange: 'Moonexpress',
             type: 'crypto',
             session: '24x7',
             timezone: 'Etc/UTC',
-            pricescale: SCALE,
             minmov: 1,
+            pricescale: symbolCfg.pricescale,
             has_intraday: true,
-            supported_resolutions: [
-              '1', '5', '15', '30', '60', '240', '720', '1440',
-            ],
+            intraday_multipliers: ['1', '5', '15', '30', '60'],
+            supported_resolutions: ['1', '5', '15', '30', '60', '240', '360', '720', '1440'],
             data_status: 'streaming',
           }),
-        0,
-      )
+        0
+      );
     },
 
-    /* 3. historical request */
     async getBars(
-      _sym: any,
-      res: string,
-      range: { from: number; to: number },
-      cb: (bars: Bar[], meta: { noData: boolean }) => void,
+      _s: any,
+      _r: string,
+      { from, to }: { from: number; to: number },
+      onHist: any
     ) {
-      const rows = await fetchBars(range.from, range.to, res)
-      cb(rows, { noData: rows.length === 0 })
+      await loadHistory();
+      const fromMs = from * 1000,
+        toMs = to * 1000;
+      const slice = bars.filter(b => b.time >= fromMs && b.time <= toMs);
+      onHist(slice, { noData: slice.length === 0 });
     },
 
-    /* 4. real-time subscription */
-    subscribeBars(
-      _sym: any,
-      res: string,
-      onBar: (b: Bar) => void,
-      uid: string,
-    ) {
-      /* poll every second – TradingView tolerates this fine */
-      timers[uid] = setInterval(async () => {
-        const now = Math.floor(Date.now() / 1_000)
-        const rows = await fetchBars(now - 180, now, res) // last 3-min window
-        if (!rows.length) return
-
-        for (const bar of rows) {
-          if (bar.time > newest) {           // we haven’t sent this one yet
-            newest = bar.time
-            onBar(bar)                       // -> **new** candle
-          } else if (bar.time === newest) {
-            // same bucket, just update O/H/L/C while it’s “live”
-            onBar({ ...cache.get(bar.time)! })
-          }
-          // if bar.time < newest → ignore (already displayed)
-        }
-      }, 1_000)
+    subscribeBars(_s: any, _r: string, onRT: (b: Bar) => void, uid: string) {
+      timers[uid] = startPolling(onRT);
     },
 
-    /* 5. clean-up */
     unsubscribeBars(uid: string) {
-      clearInterval(timers[uid])
-      delete timers[uid]
+      clearInterval(timers[uid]);
+      delete timers[uid];
     },
-  }
+  };
+}
+
+/* ───────────── Datafeed builders (price / mcap) ─────────── */
+export function makePriceFeed(
+  launch: `0x${string}`,
+  _deployBlock: bigint = 0n,
+  symbol: string
+) {
+  return createFeed(launch, 'getCurrentPriceUsd', {
+    name: `${symbol}/USD`,
+    ticker: `${symbol}/USD`,
+    description: `${symbol}/USD (Bonding Curve)`,
+    pricescale: 100_000_000,
+  });
+}
+
+export function makeMarketcapFeed(
+  launch: `0x${string}`,
+  _deployBlock: bigint = 0n,
+  symbol: string
+) {
+  return createFeed(launch, 'getLiveMarketCapUsd', {
+    name: `${symbol}/MC`,
+    ticker: `${symbol}/MC`,
+    description: `${symbol} Market Cap (USD)`,
+    pricescale: 100,
+  });
 }

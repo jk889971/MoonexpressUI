@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "Trade" ALTER COLUMN "bnbAmount" SET DEFAULT 0,
-ALTER COLUMN "tokenAmount" SET DEFAULT 0;

@@ -18,7 +18,7 @@ import {
   useAccount,
   useBalance,
 } from 'wagmi'
-import { parseEther, formatEther, decodeEventLog, encodeEventTopics, formatUnits } from "viem"
+import { parseEther, formatEther, decodeEventLog, encodeEventTopics } from "viem"
 import { bscTestnet } from '@/lib/chain'
 import { FACTORY_ADDRESS } from '@/lib/constants'
 import launchAbi from "@/lib/abis/CurveLaunch.json"
@@ -364,51 +364,17 @@ export default function CreateTokenForm() {
           })
 
           if (logs.length > 0) {
-           /* — decode ALL events we need — */
-          let buyer = "", bnbSpent = 0n, tokenWei = 0n
-          let priceRaw = 0n, mcapRaw = 0n
-
-          const dec = decodeEventLog({
+          const { args } = decodeEventLog({
             abi:    launchAbi,
             data:   logs[0].data,
             topics: logs[0].topics,
             strict: true,
           })
 
-          if (dec.eventName === "TokensBought") {
-            buyer      = (dec.args.buyer as string).toLowerCase()
-            bnbSpent   = dec.args.bnbSpent  as bigint
-            tokenWei   = dec.args.tokenAmount as bigint
-          }
-          if (dec.eventName === "PriceUpdate") {
-            priceRaw   = dec.args.priceUsd    as bigint
-          }
-          if (dec.eventName === "MarketCapUpdate") {
-            mcapRaw    = dec.args.marketCapUsd as bigint
-          }
-
-          if (priceRaw === 0n) {
-            priceRaw = await customrpc.readContract({
-              address: launchAddr as `0x${string}`,
-              abi:     launchAbi,
-              functionName: "getCurrentPriceUsd",
-            })
-          }
-
-          if (mcapRaw === 0n) {
-            mcapRaw = await customrpc.readContract({
-              address: launchAddr as `0x${string}`,
-              abi:     launchAbi,
-              functionName: "getLiveMarketCapUsd",
-            })
-          }
-
-          const txHash = logs[0].transactionHash
-
-          /* convert raw uint256 → strings for DB */
-          const priceUsdStr = formatUnits(priceRaw, 8)              // 8 dec
-          const mcapUsdStr  = Number(formatUnits(mcapRaw, 26))      // 26 dec
-                               .toFixed(2)
+                  const buyer       = (args.buyer as string).toLowerCase()
+          const bnbSpent    = args.bnbSpent  as bigint
+          const tokenWei    = args.tokenAmount as bigint
+          const txHash      = logs[0].transactionHash
 
           /* ① placeholder row (pending=true) */
           await fetch(`/api/trades/${launchAddr}`, {
@@ -430,8 +396,6 @@ export default function CreateTokenForm() {
               bnbAmount:   formatEther(bnbSpent),
               tokenAmount: formatEther(tokenWei),
               blockTimestamp: ts,
-              priceUsd:    priceUsdStr,
-              mcapUsd:     mcapUsdStr,
             }),
           })
         }

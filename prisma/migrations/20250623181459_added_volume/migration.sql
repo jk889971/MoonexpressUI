@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "PriceBar" ADD COLUMN     "volume" DECIMAL(65,30) NOT NULL DEFAULT 0;
