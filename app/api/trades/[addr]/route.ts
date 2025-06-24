@@ -49,55 +49,59 @@ export async function PATCH(
 
   const {
     txHash,
-    bnbAmount,      // string | number
-    tokenAmount,    // string | number
-    blockTimestamp, // seconds
-    blockNumber,    // number (optional)
-    priceUsd, priceTs,   // NEW (price snapshot)
-    mcapUsd,  mcapTs,    // NEW (market-cap snapshot)
+    bnbAmount,
+    tokenAmount,
+    blockTimestamp,
+    blockNumber           = 0,        // default right here
+    priceUsd,  priceTs,
+    mcapUsd,   mcapTs,
   } = await req.json()
 
+  /* 0️⃣  basic guards ---------------------------------------------------- */
   if (!txHash)
-    return new Response('Bad request', { status: 400 })
+    return new Response('Bad request (missing txHash)', { status: 400 })
 
-  /* ── Delete useless placeholder if amounts are 0 ─────────────── */
+  /* 1️⃣  delete useless placeholder ------------------------------------- */
   if (+bnbAmount === 0 || +tokenAmount === 0) {
     await prisma.trade.delete({ where: { txHash } }).catch(() => {})
     return new Response(null, { status: 204 })
   }
 
-  /* ── 1) finalise the Trade row ────────────────────────────────── */
+  /* 2️⃣  finalise Trade row --------------------------------------------- */
   await prisma.trade.update({
     where: { txHash },
-    data: {
-      bnbAmount:   new Prisma.Decimal(bnbAmount.toString()),
+    data : {
+      bnbAmount  : new Prisma.Decimal(bnbAmount.toString()),
       tokenAmount: new Prisma.Decimal(tokenAmount.toString()),
-      pending:     false,
-      createdAt:   new Date(blockTimestamp * 1_000),
+      pending    : false,
+      createdAt  : new Date(blockTimestamp * 1_000),
     },
   })
 
-  /* ── 2) mirror PriceUpdate & MarketCapUpdate rows (if present) ── */
-  if (priceUsd !== undefined && priceTs !== undefined) {
+  /* 3️⃣  mirror snapshots – but only when **both** value & ts are numbers */
+  const safe = (v: unknown): v is number =>
+    typeof v === 'number' && Number.isFinite(v)
+
+  if (safe(priceUsd) && safe(priceTs)) {
     await prisma.priceUpdate.create({
       data: {
         launchAddress,
-        kind       : 'price',                          // <── 'price'
+        kind       : 'price',
         timestamp  : BigInt(priceTs),
         rawValue   : new Prisma.Decimal(priceUsd.toString()),
-        blockNumber: BigInt(blockNumber ?? 0),
+        blockNumber: BigInt(blockNumber),
       },
     })
   }
 
-  if (mcapUsd !== undefined && mcapTs !== undefined) {
+  if (safe(mcapUsd) && safe(mcapTs)) {
     await prisma.priceUpdate.create({
       data: {
         launchAddress,
-        kind       : 'mcap',                           // <── 'mcap'
+        kind       : 'mcap',
         timestamp  : BigInt(mcapTs),
         rawValue   : new Prisma.Decimal(mcapUsd.toString()),
-        blockNumber: BigInt(blockNumber ?? 0),
+        blockNumber: BigInt(blockNumber),
       },
     })
   }
