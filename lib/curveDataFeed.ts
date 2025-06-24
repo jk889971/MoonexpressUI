@@ -45,11 +45,11 @@ export function makeFeed(
     for (const raw of rows) {
       const bar: Bar = {
         ...raw,
-        time: toBarTime(raw.time * 1000, res),          // API gives seconds
+        time: toBarTime(raw.time, res),          // API gives seconds
       };
       cache.set(bar.time, bar);
     }
-    return rows.map(r => ({ ...r, time: toBarTime(r.time * 1000, res) }));
+    return rows.map(r => ({ ...r, time: toBarTime(r.time, res) }));
   }
 
   /* ───── mandatory TV interface ───── */
