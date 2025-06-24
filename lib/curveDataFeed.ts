@@ -1,6 +1,8 @@
 //lib/curveDataFeed.ts
 
-import { toBarTime } from '@/lib/time';
+/**********************************************************************
+ *  Ultra-light TradingView data-feed that talks to our /api/bars route
+ *********************************************************************/
 
 type Bar = {
   time     : number     // ms
@@ -24,33 +26,24 @@ export function makeFeed(
   symbol: string,
   kind: 'price' | 'mcap',
 ) {
-   /* ───── helpers & caches ───── */
-  const TV_NAME  = kind === 'price' ? `${symbol}/USD` : `${symbol}/MC`;
-  const SCALE    = kind === 'price' ? 100_000_000     : 100;
-  const cache    = new Map<number, Bar>();             // key = bucketMs
-  const timers   : Record<string, NodeJS.Timeout> = {};
-  const latestByRes: Record<string, number>      = {}; // emitted ms per resolution
+  /* ───── helpers ───── */
+  const TV_NAME  = kind === 'price' ? `${symbol}/USD` : `${symbol}/MC`
+  const SCALE    = kind === 'price' ? 100_000_000 : 100
+  const cache    = new Map<number, Bar>()                // key = bucketMs
+  const timers   : Record<string, NodeJS.Timeout> = {}
+  let newest     = 0                                     // latest bucketMs seen
 
-  /** Fetch from /api/bars; always deal in **ms** internally. */
-  async function fetchBars(fromMs: number, toMs: number, res: string) {
+  async function fetchBars(from: number, to: number, res: string) {
     const url =
       `/api/bars/${launchAddr}` +
-      `?from=${Math.floor(fromMs / 1000)}` +
-      `&to=${Math.floor(toMs   / 1000)}` +
-      `&res=${res}&kind=${kind}`;
+      `?from=${from}&to=${to}&res=${res}`
 
-    const rows = (await fetch(url).then(r => r.json())) as Bar[];
-
-    // normalise → ms & bucket-start
-    for (const raw of rows) {
-      const bar: Bar = {
-        ...raw,
-        time: toBarTime(raw.time, res),          // API gives seconds
-      };
-      cache.set(bar.time, bar);
-    }
-    return rows.map(r => ({ ...r, time: toBarTime(r.time, res) }))
-      .sort((a, b) => a.time - b.time);
+    const rows = await fetch(
+      `/api/bars/${launchAddr}?from=${from}&to=${to}&res=${res}&kind=${kind}`
+    ).then(r => r.json());
+    for (const b of rows) cache.set(b.time, b)
+    if (rows.length) newest = Math.max(newest, rows.at(-1)!.time)
+    return rows
   }
 
   /* ───── mandatory TV interface ───── */
@@ -92,40 +85,47 @@ export function makeFeed(
       )
     },
 
-    async getBars(_sym, res, range, cb) {
-      const rows = await fetchBars(range.from * 1000, range.to * 1000, res);
-      cb(rows, { noData: rows.length === 0 });
+    /* 3. historical request */
+    async getBars(
+      _sym: any,
+      res: string,
+      range: { from: number; to: number },
+      cb: (bars: Bar[], meta: { noData: boolean }) => void,
+    ) {
+      const rows = await fetchBars(range.from, range.to, res)
+      cb(rows, { noData: rows.length === 0 })
     },
 
-    subscribeBars(_sym, res, onBar, uid) {
-      const secondsPerCandle = parseInt(res, 10) * 60;
-      const lookBackSec      = Math.max(secondsPerCandle * 2, 180);
-
-      let inFlight = false;
+    /* 4. real-time subscription */
+    subscribeBars(
+      _sym: any,
+      res: string,
+      onBar: (b: Bar) => void,
+      uid: string,
+    ) {
+      /* poll every second – TradingView tolerates this fine */
       timers[uid] = setInterval(async () => {
-        if (inFlight) return;
-        inFlight = true;
-        const nowMs   = Date.now();
-        const rows    = await fetchBars(nowMs - lookBackSec * 1000, nowMs, res);
-        if (!rows.length) return;
+        const now = Math.floor(Date.now() / 1_000)
+        const rows = await fetchBars(now - 180, now, res) // last 3-min window
+        if (!rows.length) return
 
-        const last = rows.at(-1)!;                      // latest bucket we have
-        const lastEmitted = latestByRes[res] ?? 0;
-
-        if (last.time > lastEmitted) {
-          latestByRes[res] = last.time;                 // new candle
-          onBar(last);
-        } else if (last.time === lastEmitted) {
-          onBar({ ...cache.get(last.time)! });          // update same candle
+        for (const bar of rows) {
+          if (bar.time > newest) {           // we haven’t sent this one yet
+            newest = bar.time
+            onBar(bar)                       // -> **new** candle
+          } else if (bar.time === newest) {
+            // same bucket, just update O/H/L/C while it’s “live”
+            onBar({ ...cache.get(bar.time)! })
+          }
+          // if bar.time < newest → ignore (already displayed)
         }
-        // if last.time < lastEmitted → drop; never go backwards
-        inFlight = false;
-      }, 1000);
+      }, 1_000)
     },
 
-    unsubscribeBars(uid) {
-      clearInterval(timers[uid]);
-      delete timers[uid];
+    /* 5. clean-up */
+    unsubscribeBars(uid: string) {
+      clearInterval(timers[uid])
+      delete timers[uid]
     },
-  };
+  }
 }
