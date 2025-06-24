@@ -1,8 +1,6 @@
 //lib/curveDataFeed.ts
 
-/**********************************************************************
- *  Ultra-light TradingView data-feed that talks to our /api/bars route
- *********************************************************************/
+import { toBarTime } from '@/lib/time';
 
 type Bar = {
   time     : number     // ms
@@ -26,24 +24,32 @@ export function makeFeed(
   symbol: string,
   kind: 'price' | 'mcap',
 ) {
-  /* ───── helpers ───── */
-  const TV_NAME  = kind === 'price' ? `${symbol}/USD` : `${symbol}/MC`
-  const SCALE    = kind === 'price' ? 100_000_000 : 100
-  const cache    = new Map<number, Bar>()                // key = bucketMs
-  const timers   : Record<string, NodeJS.Timeout> = {}
-  let newest     = 0                                     // latest bucketMs seen
+   /* ───── helpers & caches ───── */
+  const TV_NAME  = kind === 'price' ? `${symbol}/USD` : `${symbol}/MC`;
+  const SCALE    = kind === 'price' ? 100_000_000     : 100;
+  const cache    = new Map<number, Bar>();             // key = bucketMs
+  const timers   : Record<string, NodeJS.Timeout> = {};
+  const latestByRes: Record<string, number>      = {}; // emitted ms per resolution
 
-  async function fetchBars(from: number, to: number, res: string) {
+  /** Fetch from /api/bars; always deal in **ms** internally. */
+  async function fetchBars(fromMs: number, toMs: number, res: string) {
     const url =
       `/api/bars/${launchAddr}` +
-      `?from=${from}&to=${to}&res=${res}`
+      `?from=${Math.floor(fromMs / 1000)}` +
+      `&to=${Math.floor(toMs   / 1000)}` +
+      `&res=${res}&kind=${kind}`;
 
-    const rows = await fetch(
-      `/api/bars/${launchAddr}?from=${from}&to=${to}&res=${res}&kind=${kind}`
-    ).then(r => r.json());
-    for (const b of rows) cache.set(b.time, b)
-    if (rows.length) newest = Math.max(newest, rows.at(-1)!.time)
-    return rows
+    const rows = (await fetch(url).then(r => r.json())) as Bar[];
+
+    // normalise → ms & bucket-start
+    for (const raw of rows) {
+      const bar: Bar = {
+        ...raw,
+        time: toBarTime(raw.time * 1000, res),          // API gives seconds
+      };
+      cache.set(bar.time, bar);
+    }
+    return rows.map(r => ({ ...r, time: toBarTime(r.time * 1000, res) }));
   }
 
   /* ───── mandatory TV interface ───── */
@@ -85,47 +91,36 @@ export function makeFeed(
       )
     },
 
-    /* 3. historical request */
-    async getBars(
-      _sym: any,
-      res: string,
-      range: { from: number; to: number },
-      cb: (bars: Bar[], meta: { noData: boolean }) => void,
-    ) {
-      const rows = await fetchBars(range.from, range.to, res)
-      cb(rows, { noData: rows.length === 0 })
+    async getBars(_sym, res, range, cb) {
+      const rows = await fetchBars(range.from * 1000, range.to * 1000, res);
+      cb(rows, { noData: rows.length === 0 });
     },
 
-    /* 4. real-time subscription */
-    subscribeBars(
-      _sym: any,
-      res: string,
-      onBar: (b: Bar) => void,
-      uid: string,
-    ) {
-      const secondsPerCandle = parseInt(res, 10) * 60        // "1" → 60, "5" → 300 …
-      const lookBack         = Math.max(secondsPerCandle * 2, 180)
+    subscribeBars(_sym, res, onBar, uid) {
+      const secondsPerCandle = parseInt(res, 10) * 60;
+      const lookBackSec      = Math.max(secondsPerCandle * 2, 180);
 
       timers[uid] = setInterval(async () => {
-        const now = Math.floor(Date.now() / 1_000)
-        const rows = await fetchBars(now - lookBack, now, res)
-        if (!rows.length) return
+        const nowMs   = Date.now();
+        const rows    = await fetchBars(nowMs - lookBackSec * 1000, nowMs, res);
+        if (!rows.length) return;
 
-        const last = rows.at(-1)!
-        if (last.time > newest) {
-          newest = last.time
-          onBar(last)            // new bucket
-        } else {
-          // existing bucket update – clone to avoid mutating cache
-          onBar({ ...cache.get(last.time)! })
+        const last = rows.at(-1)!;                      // latest bucket we have
+        const lastEmitted = latestByRes[res] ?? 0;
+
+        if (last.time > lastEmitted) {
+          latestByRes[res] = last.time;                 // new candle
+          onBar(last);
+        } else if (last.time === lastEmitted) {
+          onBar({ ...cache.get(last.time)! });          // update same candle
         }
-      }, 1_000)
+        // if last.time < lastEmitted → drop; never go backwards
+      }, 1000);
     },
 
-    /* 5. clean-up */
-    unsubscribeBars(uid: string) {
-      clearInterval(timers[uid])
-      delete timers[uid]
+    unsubscribeBars(uid) {
+      clearInterval(timers[uid]);
+      delete timers[uid];
     },
-  }
+  };
 }

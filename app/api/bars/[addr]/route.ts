@@ -1,73 +1,80 @@
-//api/bars/[addr]/route.ts
-import { NextRequest, NextResponse } from 'next/server'
+// api/bars/[addr]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { toBarTime } from '@/lib/time';           // NEW
 
+/** Lazy-load Prisma to stay edge-compatible */
 async function getDb() {
-  const mod = await import('@/lib/db')
-  return mod.prisma as typeof import('@/lib/db').prisma
+  const mod = await import('@/lib/db');
+  return mod.prisma as typeof import('@/lib/db').prisma;
 }
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { addr: string } },
 ) {
-  const prisma = await getDb()
+  const prisma = await getDb();
 
-  const launch  = params.addr.toLowerCase()
-  const kind    = req.nextUrl.searchParams.get('kind') === 'mcap' ? 'mcap' : 'price'
-  const fromSec = Number(req.nextUrl.searchParams.get('from') ?? '0')
-  const toSec   = Number(req.nextUrl.searchParams.get('to')   ?? Date.now() / 1_000)
-  const resMin  = Number(req.nextUrl.searchParams.get('res')  ?? '1')        // minutes
+  /* ────── query-string params ────────────────────────────────────────── */
+  const launch  = params.addr.toLowerCase();
+  const kind    = req.nextUrl.searchParams.get('kind') === 'mcap' ? 'mcap' : 'price';
+  const res     = req.nextUrl.searchParams.get('res')  ?? '1';        // "1", "5", "60"…
+  const resMin  = Number(res);                                        // minutes
+  const fromSec = Number(req.nextUrl.searchParams.get('from') ?? '0');
+  const toSec   = Number(req.nextUrl.searchParams.get('to')   ?? Date.now() / 1_000);
 
-  if (!launch || resMin <= 0) return NextResponse.json([], { status: 400 })
+  if (!launch || !resMin) return NextResponse.json([], { status: 400 });
 
-  /* ── common BigInt conversions ───────────────────────────────────────── */
-  const fromMs = BigInt(Math.floor(fromSec)) * 1_000n
-  const toMs   = BigInt(Math.floor(toSec  )) * 1_000n
-  const spanMs = BigInt(resMin) * 60_000n                                    // bucket size
+  /* ────── convert once to ms; keep numbers everywhere after this ─────── */
+  const fromMs = fromSec * 1_000;
+  const toMs   = toSec   * 1_000;
+  const spanMs = resMin  * 60_000;                                    // bucket size
 
-  /* ── pull 1-minute rows for this series (price || mcap) ──────────────── */
+  /* ────── fetch 1 min primitives from DB ─────────────────────────────── */
   const rows = await prisma.priceBar.findMany({
-    where : {
+    where: {
       launchAddress: launch,
-      kind,                                // <- NEW discriminator
-      bucketMs: { gte: fromMs, lte: toMs },
+      kind,
+      bucketMs: { gte: BigInt(fromMs), lte: BigInt(toMs) },
     },
     orderBy: { bucketMs: 'asc' },
-  })
+  });
 
-  /* ── on-the-fly aggregation into larger buckets ────────────────────────── */
+  /* ────── aggregate on the fly into the requested resolution ─────────── */
   const out: any[] = [];
 
-  let curBucket = Number(((fromMs / spanMs) * spanMs));           // first minute we must return
-  let lastClose: number | null = null;      // we carry the latest close forward
+  let curBucket   = toBarTime(fromMs, res);    // very first bucket to emit
+  let lastClose: number | null = null;
+
+  const pushGhost = (t: number) => {
+    if (lastClose === null) return;
+    out.push({
+      time   : t,
+      open   : lastClose,
+      high   : lastClose,
+      low    : lastClose,
+      close  : lastClose,
+      volume : 0,
+      mcapUsd: lastClose,
+    });
+  };
 
   for (const r of rows) {
-    const thisBucket = Number((r.bucketMs / spanMs) * spanMs);   // align row
+    const bucket = toBarTime(Number(r.bucketMs), res);   // align DB row
 
-    /* ①  fill every empty minute **before** the current DB row ------------- */
-    while (curBucket < thisBucket) {
-      if (lastClose !== null) {
-        out.push({
-          time   : curBucket,
-          open   : lastClose,
-          high   : lastClose,
-          low    : lastClose,
-          close  : lastClose,
-          volume : 0,
-          mcapUsd: lastClose,
-        });
-      }
-      curBucket += Number(spanMs);          // hop to next expected bucket
+    /* fill any empty buckets *before* this real bar */
+    while (curBucket < bucket) {
+      pushGhost(curBucket);
+      curBucket += spanMs;
     }
 
-    /* ②  push the real bar from the DB row --------------------------------- */
-    const open  = lastClose === null ? Number(r.open) : lastClose;
+    /* real aggregated bar */
+    const open  = lastClose ?? Number(r.open);
     const high  = Math.max(open, Number(r.high));
     const low   = Math.min(open, Number(r.low));
     const close = Number(r.close);
 
     out.push({
-      time   : thisBucket,
+      time   : bucket,
       open,
       high,
       low,
@@ -77,21 +84,14 @@ export async function GET(
     });
 
     lastClose = close;
-    curBucket = thisBucket + Number(spanMs);   // expect the next bucket
+    curBucket = bucket + spanMs;
   }
 
-  /* ③  fill the tail up to `toMs` so the very last candle isn’t blank ------- */
-  while (curBucket <= Number(toMs) && lastClose !== null) {
-    out.push({
-      time   : curBucket,
-      open   : lastClose,
-      high   : lastClose,
-      low    : lastClose,
-      close  : lastClose,
-      volume : 0,
-      mcapUsd: lastClose,
-    });
-    curBucket += Number(spanMs);
+  /* only pad **finished** bricks – never the one still forming */
+  const lastFinished = toBarTime(toMs - spanMs, res);
+  while (curBucket <= lastFinished) {
+    pushGhost(curBucket);
+    curBucket += spanMs;
   }
 
   return NextResponse.json(out);
