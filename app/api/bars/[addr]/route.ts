@@ -1,4 +1,4 @@
-//api/bars/[addr]/route.ts
+// app/api/bars/[addr]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 
 async function getDb() {
@@ -20,92 +20,86 @@ export async function GET(
 
   if (!launch || resMin <= 0) return NextResponse.json([], { status: 400 })
 
-  /* ── common BigInt conversions ───────────────────────────────────────── */
-  const fromMs = BigInt(Math.floor(fromSec)) * 1_000n
-  const toMs   = BigInt(Math.floor(toSec  )) * 1_000n
-  const spanMs = BigInt(resMin) * 60_000n                                    // bucket size
+  /* ── Convert to milliseconds and calculate bucket size ───────────────── */
+  const bucketSizeMs = resMin * 60 * 1000
+  const fromMs = fromSec * 1000
+  const toMs = toSec * 1000
 
-  /* ── pull 1-minute rows for this series (price || mcap) ──────────────── */
+  /* ── Pull 1-minute rows for this series ─────────────────────────────── */
   const rows = await prisma.priceBar.findMany({
     where : {
       launchAddress: launch,
       kind,
-      bucketMs: { gte: fromMs, lte: toMs },
+      bucketMs: { gte: BigInt(fromMs), lte: BigInt(toMs) },
     },
     orderBy: { bucketMs: 'asc' },
   })
 
-  /* ── Corrected aggregation logic ─────────────────────────────────────── */
+  /* ── Core aggregation and gap-filling logic ─────────────────────────── */
   const out: any[] = [];
-  const bucketMap = new Map<string, Bar>();
+  
+  // Create a map of all 1-minute bars for quick lookup
+  const minuteBars = new Map<number, any>();
+  rows.forEach(bar => {
+    minuteBars.set(Number(bar.bucketMs), {
+      open: Number(bar.open),
+      high: Number(bar.high),
+      low: Number(bar.low),
+      close: Number(bar.close),
+      mcapUsd: Number(bar.mcapUsd)
+    });
+  });
 
-  // 1. Group 1-minute bars into target timeframe buckets
-  for (const r of rows) {
-    const bucketKey = String((r.bucketMs / spanMs) * spanMs);
+  // Track previous bar values for gap filling
+  let prevClose = null;
+  let prevMcap = null;
+
+  // Process each bucket in the requested timeframe
+  for (let time = fromMs; time <= toMs; time += bucketSizeMs) {
+    const bucketEnd = time + bucketSizeMs;
+    let bucketBars = [];
     
-    if (!bucketMap.has(bucketKey)) {
-      bucketMap.set(bucketKey, {
-        time: Number(bucketKey),
-        open: Number(r.open),
-        high: Number(r.high),
-        low: Number(r.low),
-        close: Number(r.close),
-        volume: 0,
-        mcapUsd: Number(r.mcapUsd)
-      });
-    } else {
-      const bar = bucketMap.get(bucketKey)!;
-      bar.high = Math.max(bar.high, Number(r.high));
-      bar.low = Math.min(bar.low, Number(r.low));
-      bar.close = Number(r.close);
-      bar.mcapUsd = Number(r.mcapUsd);
-    }
-  }
-
-  // 2. Create sorted array of buckets
-  const sortedBuckets = Array.from(bucketMap.values()).sort((a, b) => a.time - b.time);
-
-  // 3. Fill gaps between buckets
-  let lastClose: number | null = null;
-  let currentTime = Number(fromMs);
-
-  for (const bucket of sortedBuckets) {
-    // Fill gap between current time and this bucket
-    while (currentTime < bucket.time) {
-      if (lastClose !== null) {
-        out.push({
-          time: currentTime,
-          open: lastClose,
-          high: lastClose,
-          low: lastClose,
-          close: lastClose,
-          volume: 0,
-          mcapUsd: lastClose
-        });
+    // Collect all minute bars within this bucket
+    for (let t = time; t < bucketEnd; t += 60000) {
+      if (minuteBars.has(t)) {
+        bucketBars.push(minuteBars.get(t));
       }
-      currentTime += Number(spanMs);
     }
-    
-    // Add the actual bucket
-    out.push(bucket);
-    lastClose = bucket.close;
-    currentTime = bucket.time + Number(spanMs);
-  }
 
-  // 4. Fill tail after last bucket
-  while (currentTime <= Number(toMs)) {
-    if (lastClose !== null) {
+    if (bucketBars.length > 0) {
+      // Aggregate minute bars into larger timeframe
+      const open = bucketBars[0].open;
+      const close = bucketBars[bucketBars.length - 1].close;
+      const high = Math.max(...bucketBars.map(b => b.high));
+      const low = Math.min(...bucketBars.map(b => b.low));
+      const mcapUsd = bucketBars[bucketBars.length - 1].mcapUsd;
+      
       out.push({
-        time: currentTime,
-        open: lastClose,
-        high: lastClose,
-        low: lastClose,
-        close: lastClose,
+        time,
+        open,
+        high,
+        low,
+        close,
         volume: 0,
-        mcapUsd: lastClose
+        mcapUsd
+      });
+      
+      // Update previous values
+      prevClose = close;
+      prevMcap = mcapUsd;
+    } else if (prevClose !== null) {
+      // Fill gap with previous close
+      out.push({
+        time,
+        open: prevClose,
+        high: prevClose,
+        low: prevClose,
+        close: prevClose,
+        volume: 0,
+        mcapUsd: prevMcap
       });
     }
-    currentTime += Number(spanMs);
+    // Else: no data and no previous bar - skip this bucket
   }
 
   return NextResponse.json(out);
