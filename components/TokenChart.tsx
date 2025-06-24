@@ -38,6 +38,8 @@ export default function TokenChart({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    console.log(`[TokenChart] Initializing for ${symbol}/${chartType}`);
+
     const timeFrames: TimeFrameItem[] = [
       { text: '1m',  resolution: '1',    description: '1 minute'   },
       { text: '5m',  resolution: '5',    description: '5 minutes'  },
@@ -58,7 +60,7 @@ export default function TokenChart({
       datafeed,
       autosize: true,
       theme: 'Dark',
-      debug: false,
+      debug: true,
       disabled_features: [
         'header_symbol_search',
         'symbol_search_hot_key',
@@ -75,6 +77,7 @@ export default function TokenChart({
 
     // Add our styled Price/MCap toggle
     tv.onChartReady(() => {
+      console.log('[TokenChart] Chart ready');
       tv.headerReady().then(() => {
         const btn = tv.createButton();
         btn.setAttribute('title', 'Toggle Price / Market-cap');
@@ -99,7 +102,16 @@ export default function TokenChart({
       });
     });
 
-    return () => tv.remove();
+    tv.onError((error) => {
+      console.error('[TokenChart] TV error:', error);
+    });
+
+    
+
+    return () => {
+      console.log('[TokenChart] Cleaning up');
+      tv.remove();
+    };
   }, [chartType, widgetSym, datafeed]);
 
   return <div ref={containerRef} className="h-[30rem] w-full max-[370px]:h-[32rem]" />;

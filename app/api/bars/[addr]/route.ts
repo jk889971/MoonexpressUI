@@ -1,4 +1,3 @@
-// app/api/bars/[addr]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 
 async function getDb() {
@@ -12,124 +11,88 @@ export async function GET(
 ) {
   try {
     const prisma = await getDb()
-    const launch  = params.addr.toLowerCase()
-    const kind    = req.nextUrl.searchParams.get('kind') === 'mcap' ? 'mcap' : 'price'
-    const fromSec = Number(req.nextUrl.searchParams.get('from') ?? '0')
-    const toSec   = Number(req.nextUrl.searchParams.get('to')   ?? Date.now() / 1_000)
-    const resMin  = Number(req.nextUrl.searchParams.get('res')  ?? '1') // minutes
+    const launch = params.addr.toLowerCase()
+    const kind = req.nextUrl.searchParams.get('kind') || 'price'
+    const from = Number(req.nextUrl.searchParams.get('from') || 0
+    const to = Number(req.nextUrl.searchParams.get('to') || Math.floor(Date.now() / 1000))
+    const res = Number(req.nextUrl.searchParams.get('res') || 1)
 
-    if (!launch || resMin <= 0) return NextResponse.json([], { status: 400 })
+    console.log(`[Bars API] ${launch} kind=${kind} from=${from} to=${to} res=${res}`)
 
-    // Convert to milliseconds and calculate bucket size
-    const bucketSizeMs = resMin * 60 * 1000
-    const fromMs = Math.floor(fromSec) * 1000
-    const toMs = Math.floor(toSec) * 1000
-
-    // 1. Get the last bar BEFORE our time range to establish initial state
-    const initialBar = await prisma.priceBar.findFirst({
+    // Fetch raw 1-minute bars
+    const minuteBars = await prisma.priceBar.findMany({
       where: {
         launchAddress: launch,
-        kind,
-        bucketMs: { lt: BigInt(fromMs) }
-      },
-      orderBy: { bucketMs: 'desc' },
-      take: 1
-    })
-
-    // 2. Get bars within our time range
-    const rows = await prisma.priceBar.findMany({
-      where: {
-        launchAddress: launch,
-        kind,
-        bucketMs: { gte: BigInt(fromMs), lte: BigInt(toMs) }
+        kind: kind === 'mcap' ? 'mcap' : 'price',
+        bucketMs: {
+          gte: BigInt(from * 1000),
+          lte: BigInt(to * 1000)
+        }
       },
       orderBy: { bucketMs: 'asc' }
     })
 
-    // 3. Prepare our data structures
-    const out: any[] = []
-    const barMap = new Map<number, any>()
-    
-    // Convert DB rows to plain objects
-    rows.forEach(bar => {
-      barMap.set(Number(bar.bucketMs), {
-        time: Number(bar.bucketMs),
-        open: Number(bar.open),
-        high: Number(bar.high),
-        low: Number(bar.low),
-        close: Number(bar.close),
+    console.log(`[Bars API] Found ${minuteBars.length} minute bars`)
+
+    // Handle empty dataset
+    if (minuteBars.length === 0) {
+      console.warn(`[Bars API] No data for ${launch}/${kind}`)
+      return NextResponse.json([{
+        time: from * 1000,
+        open: 0.01,
+        high: 0.01,
+        low: 0.01,
+        close: 0.01,
         volume: 0,
-        mcapUsd: Number(bar.mcapUsd)
-      })
-    })
+        mcapUsd: 0.01
+      }])
+    }
 
-    // 4. Establish initial state for gap filling
-    let lastKnown = initialBar ? {
-      close: Number(initialBar.close),
-      mcap: Number(initialBar.mcapUsd)
-    } : null
+    // Group into target resolution
+    const bars = []
+    const bucketSize = res * 60 // in seconds
+    let currentBucket = 0
+    let currentBar: any = null
 
-    // 5. Process each bucket in the time range
-    for (let time = fromMs; time <= toMs; time += bucketSizeMs) {
-      const bucketEnd = time + bucketSizeMs
-      const minuteBars = []
+    for (const bar of minuteBars) {
+      const barTimestamp = Number(bar.bucketMs) / 1000
+      const bucket = Math.floor(barTimestamp / bucketSize) * bucketSize
       
-      // Collect all 1-minute bars in this bucket
-      for (let t = time; t < bucketEnd; t += 60000) {
-        if (barMap.has(t)) {
-          minuteBars.push(barMap.get(t))
-        }
-      }
-
-      if (minuteBars.length > 0) {
-        // Aggregate bars in this bucket
-        const bucketBar = {
-          time,
-          open: minuteBars[0].open,
-          high: Math.max(...minuteBars.map(b => b.high)),
-          low: Math.min(...minuteBars.map(b => b.low)),
-          close: minuteBars[minuteBars.length - 1].close,
-          volume: 0,
-          mcapUsd: minuteBars[minuteBars.length - 1].mcapUsd
+      if (bucket !== currentBucket) {
+        // Save previous bar
+        if (currentBar) {
+          bars.push(currentBar)
         }
         
-        out.push(bucketBar)
-        lastKnown = {
-          close: bucketBar.close,
-          mcap: bucketBar.mcapUsd
-        }
-      } else if (lastKnown) {
-        // Fill gap with last known values
-        out.push({
-          time,
-          open: lastKnown.close,
-          high: lastKnown.close,
-          low: lastKnown.close,
-          close: lastKnown.close,
+        // Start new bar
+        currentBucket = bucket
+        currentBar = {
+          time: bucket * 1000,
+          open: Number(bar.open),
+          high: Number(bar.high),
+          low: Number(bar.low),
+          close: Number(bar.close),
           volume: 0,
-          mcapUsd: lastKnown.mcap
-        })
+          mcapUsd: Number(bar.mcapUsd)
+        }
+      } else {
+        // Update existing bar
+        currentBar.high = Math.max(currentBar.high, Number(bar.high))
+        currentBar.low = Math.min(currentBar.low, Number(bar.low))
+        currentBar.close = Number(bar.close)
+        currentBar.mcapUsd = Number(bar.mcapUsd)
       }
-      // Else: no data and no lastKnown - skip bucket
     }
 
-    // 6. If we have no bars at all, create a dummy bar to avoid empty response
-    if (out.length === 0) {
-      const dummyValue = 0.01
-      out.push({
-        time: fromMs,
-        open: dummyValue,
-        high: dummyValue,
-        low: dummyValue,
-        close: dummyValue,
-        volume: 0,
-        mcapUsd: dummyValue
-      })
+    // Push the last bar
+    if (currentBar) {
+      bars.push(currentBar)
     }
 
-    return NextResponse.json(out)
+    console.log(`[Bars API] Generated ${bars.length} bars`)
+    return NextResponse.json(bars)
   } catch (error) {
-    console.error(`Bars API error for ${params.addr}:`, error)
+    console.error('[Bars API] Error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

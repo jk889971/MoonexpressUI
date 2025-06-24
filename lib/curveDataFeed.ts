@@ -34,16 +34,27 @@ export function makeFeed(
   let newest     = 0                                     // latest bucketMs seen
 
   async function fetchBars(from: number, to: number, res: string) {
-    const url =
-      `/api/bars/${launchAddr}` +
-      `?from=${from}&to=${to}&res=${res}`
-
-    const rows = await fetch(
-      `/api/bars/${launchAddr}?from=${from}&to=${to}&res=${res}&kind=${kind}`
-    ).then(r => r.json());
-    for (const b of rows) cache.set(b.time, b)
-    if (rows.length) newest = Math.max(newest, rows.at(-1)!.time)
-    return rows
+    try {
+      const url = `/api/bars/${launchAddr}?from=${from}&to=${to}&res=${res}&kind=${kind}`
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+      
+      const rows = await response.json()
+      console.log(`[DataFeed] Fetched ${rows.length} bars for ${res}min`)
+      
+      for (const b of rows) {
+        cache.set(b.time, b)
+        newest = Math.max(newest, b.time)
+      }
+      
+      return rows
+    } catch (error) {
+      console.error('[DataFeed] fetchBars error:', error)
+      return []
+    }
   }
 
   /* ───── mandatory TV interface ───── */
