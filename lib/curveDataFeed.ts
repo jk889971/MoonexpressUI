@@ -11,6 +11,7 @@ type Bar = {
   low      : number
   close    : number
   volume   : number
+  mcapUsd? : number
 }
 
 /**
@@ -33,28 +34,16 @@ export function makeFeed(
   let newest     = 0                                     // latest bucketMs seen
 
   async function fetchBars(from: number, to: number, res: string) {
-    const response = await fetch(
+    const url =
+      `/api/bars/${launchAddr}` +
+      `?from=${from}&to=${to}&res=${res}`
+
+    const rows = await fetch(
       `/api/bars/${launchAddr}?from=${from}&to=${to}&res=${res}&kind=${kind}`
-    );
-    
-    const rows = await response.json();
-    
-    // Transform API response to TradingView bar format
-    const bars = rows.map((b: any) => ({
-      time: b.time,
-      open: b.open,
-      high: b.high,
-      low: b.low,
-      close: b.close,
-      volume: b.volume || 0,  // Ensure volume exists
-    }));
-    
-    for (const bar of bars) {
-      cache.set(bar.time, bar);
-      newest = Math.max(newest, bar.time);
-    }
-    
-    return bars;
+    ).then(r => r.json());
+    for (const b of rows) cache.set(b.time, b)
+    if (rows.length) newest = Math.max(newest, rows.at(-1)!.time)
+    return rows
   }
 
   /* ───── mandatory TV interface ───── */
@@ -114,20 +103,19 @@ export function makeFeed(
       onBar: (b: Bar) => void,
       uid: string,
     ) {
-      /* poll every second */
+      /* poll every second – TradingView tolerates this fine */
       timers[uid] = setInterval(async () => {
         const now = Math.floor(Date.now() / 1_000)
-        const bars = await fetchBars(now - 180, now, res) // last 3-min window
-        if (!bars.length) return
+        const rows = await fetchBars(now - 180, now, res) // last 3-min window
+        if (!rows.length) return
 
-        const last = bars[bars.length - 1]
+        const last = rows.at(-1)!
         if (last.time > newest) {
           newest = last.time
           onBar(last)            // new bucket
         } else {
-          // Existing bucket update - get from cache
-          const cached = cache.get(last.time)
-          if (cached) onBar({ ...cached })
+          // existing bucket update – clone to avoid mutating cache
+          onBar({ ...cache.get(last.time)! })
         }
       }, 1_000)
     },

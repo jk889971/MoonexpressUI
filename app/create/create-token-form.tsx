@@ -432,7 +432,6 @@ export default function CreateTokenForm() {
               blockTimestamp: ts,
               priceUsd:    priceUsdStr,
               mcapUsd:     mcapUsdStr,
-              volume: formatEther(bnbSpent)
             }),
           })
         }

@@ -1,5 +1,3 @@
-//api/trades/[addr]/route.ts
-import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 
 async function getDb() {
@@ -7,217 +5,160 @@ async function getDb() {
   return mod.prisma as typeof import('@/lib/db').prisma
 }
 
-// Helper for CORS and JSON responses
-function jsonResponse(data: any, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    }
-  })
-}
-
-function errorResponse(message: string, status = 400) {
-  return jsonResponse({ error: message }, status)
-}
-
-/*────────────────────────────  OPTIONS  ───────────────────────────*/
-export async function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    }
-  })
-}
-
-/*────────────────────────────  HEAD  ──────────────────────────────*/
-export async function HEAD() {
-  return new Response(null, { status: 200 })
-}
-
-/*────────────────────────────  POST  ──────────────────────────────*/
+/*────────────────────────────  POST  ────────────────────────────*/
 export async function POST(
   req: Request,
   { params }: { params: { addr: string } },
 ) {
-  try {
-    const prisma = await getDb()
-    const launchAddress = params.addr.toLowerCase()
-    
-    // Validate address format
-    if (!/^0x[a-f0-9]{40}$/i.test(launchAddress)) {
-      return errorResponse('Invalid address format', 400)
-    }
+  const prisma         = await getDb()
+  const launchAddress  = params.addr.toLowerCase()
+  const { wallet, type, txHash } = await req.json()
 
-    const { wallet, type, txHash } = await req.json()
+  if (!wallet || !type || !txHash)
+    return new Response('Bad request', { status: 400 })
 
-    if (!wallet || !type || !txHash) {
-      return errorResponse('Missing required fields', 400)
-    }
-
-    await prisma.trade.upsert({
-      where: { txHash },
-      update: {},
-      create: { launchAddress, wallet, type, txHash, pending: true },
-    })
-    
-    return new Response(null, {
-      status: 201,
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    })
-  } catch (error) {
-    console.error('POST /api/trades/[addr] error:', error)
-    return errorResponse('Internal server error', 500)
-  }
+  await prisma.trade.upsert({
+    where  : { txHash },
+    update : {},
+    create : { launchAddress, wallet, type, txHash, pending: true },
+  })
+  return new Response(null, { status: 201 })
 }
 
-/*────────────────────────────  PATCH  ─────────────────────────────*/
+/*────────────────────────────  PATCH  ───────────────────────────*/
 export async function PATCH(req: Request) {
-  try {
-    const prisma = await getDb()
-    const {
-      txHash,
-      bnbAmount,
-      tokenAmount,
-      blockTimestamp,
-      priceUsd,
-      mcapUsd,
-    } = await req.json()
+  const prisma = await getDb()
+  const {
+    txHash,
+    bnbAmount,
+    tokenAmount,
+    blockTimestamp,
+    priceUsd,
+    mcapUsd,
+  } = await req.json()
 
-    if (!txHash) {
-      return errorResponse('Missing txHash', 400)
-    }
+  if (!txHash) return new Response('Bad request', { status: 400 })
 
-    /* delete empty placeholder rows */
-    if (+bnbAmount === 0 || +tokenAmount === 0) {
-      await prisma.trade.delete({ where: { txHash } }).catch(() => {})
-      return new Response(null, { 
-        status: 204,
-        headers: { 'Access-Control-Allow-Origin': '*' }
-      })
-    }
-
-    /* ── update the trade itself ─────────────────────────────── */
-    await prisma.trade.update({
-      where: { txHash },
-      data: {
-        bnbAmount: new Prisma.Decimal(bnbAmount.toString()),
-        tokenAmount: new Prisma.Decimal(tokenAmount.toString()),
-        pending: false,
-        createdAt: new Date(Number(blockTimestamp) * 1000),
-        ...(priceUsd !== undefined && { priceUsd: new Prisma.Decimal(priceUsd) }),
-        ...(mcapUsd !== undefined && { mcapUsd: new Prisma.Decimal(mcapUsd) }),
-      },
-    })
-
-    /* ── if we have price info, write price & mcap minute bars ─── */
-    if (priceUsd !== undefined && mcapUsd !== undefined) {
-      const trade = await prisma.trade.findUnique({
-        where: { txHash },
-        select: { launchAddress: true },
-      })
-
-      if (!trade) {
-        return errorResponse('Trade not found', 404)
-      }
-
-      const { launchAddress } = trade
-      const bucketMs = BigInt(Math.floor(Number(blockTimestamp) / 60) * 60 * 1000)
-      const priceDec = new Prisma.Decimal(priceUsd)
-      const mcapDec = new Prisma.Decimal(mcapUsd)
-
-      /* helper to upsert one kind of bar */
-      const upsertBar = async (kind: 'price' | 'mcap', val: Prisma.Decimal) => {
-        const existing = await prisma.priceBar.findUnique({
-          where: { 
-            launchAddress_bucketMs_kind: { 
-              launchAddress, 
-              bucketMs, 
-              kind 
-            } 
-          },
-        })
-
-        if (existing) {
-          // Update existing bar
-          const high = Prisma.Decimal.max(existing.high, val)
-          const low = Prisma.Decimal.min(existing.low, val)
-          
-          await prisma.priceBar.update({
-            where: { 
-              launchAddress_bucketMs_kind: { 
-                launchAddress, 
-                bucketMs, 
-                kind 
-              } 
-            },
-            data: { 
-              high, 
-              low, 
-              close: val,
-              mcapUsd: mcapDec
-            },
-          })
-        } else {
-          // Create new bar
-          await prisma.priceBar.create({
-            data: {
-              launchAddress,
-              bucketMs,
-              kind,
-              open: val,
-              high: val,
-              low: val,
-              close: val,
-              mcapUsd: mcapDec,
-              volume: new Prisma.Decimal(0)
-            },
-          })
-        }
-      }
-
-      await upsertBar('price', priceDec)
-      await upsertBar('mcap', mcapDec)
-    }
-
-    return new Response(null, { 
-      status: 200,
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    })
-  } catch (error) {
-    console.error('PATCH /api/trades error:', error)
-    return errorResponse('Internal server error', 500)
+  /* delete empty placeholder rows */
+  if (+bnbAmount === 0 || +tokenAmount === 0) {
+    await prisma.trade.delete({ where: { txHash } }).catch(() => {})
+    return new Response(null, { status: 204 })
   }
+
+  /* ── update the trade itself ─────────────────────────────────────────── */
+  await prisma.trade.update({
+    where: { txHash },
+    data : {
+      bnbAmount  : new Prisma.Decimal(bnbAmount.toString()),
+      tokenAmount: new Prisma.Decimal(tokenAmount.toString()),
+      pending    : false,
+      createdAt  : new Date(blockTimestamp * 1_000),
+      ...(priceUsd !== undefined && { priceUsd: new Prisma.Decimal(priceUsd) }),
+      ...(mcapUsd  !== undefined && { mcapUsd : new Prisma.Decimal(mcapUsd ) }),
+    },
+  })
+
+  /* ── if we have price info, write BOTH price & mcap minute bars ──────── */
+  if (priceUsd !== undefined && mcapUsd !== undefined) {
+    const { launchAddress } = await prisma.trade.findUniqueOrThrow({
+      where  : { txHash },
+      select : { launchAddress: true },
+    })
+
+    const bucketMs = BigInt(Math.floor(blockTimestamp / 60) * 60 * 1_000)
+    const priceDec = new Prisma.Decimal(priceUsd)
+    const mcapDec  = new Prisma.Decimal(mcapUsd)
+
+    /* helper to upsert one kind of bar ------------------------------------- */
+    const upsertBar = async (
+      kind: 'price' | 'mcap',
+      val:  Prisma.Decimal,         // this trade’s price OR mcap value
+    ) => {
+
+      /* A. does a bar already exist for this minute? ----------------------- */
+      const existing = await prisma.priceBar.findUnique({
+        where: {
+          launchAddress_bucketMs_kind: {
+            launchAddress,
+            bucketMs,
+            kind,
+          },
+        },
+      });
+
+      /* B. If no bar yet, look up the **previous** minute’s close ---------- */
+      let open: Prisma.Decimal;
+
+      if (!existing) {
+        const prev = await prisma.priceBar.findUnique({
+          where: {
+            launchAddress_bucketMs_kind: {
+              launchAddress,
+              bucketMs: bucketMs - 60_000n,   // 1 minute earlier
+              kind,
+            },
+          },
+          select: { close: true },
+        });
+
+        open = prev ? prev.close               // carry-over
+                    : val;                     // very first bar ever
+      } else {
+        open = existing.open;                  // keep whatever was there
+      }
+
+      /* C. Compute hi / lo with the new tick ------------------------------- */
+      const high = existing ? Prisma.Decimal.max(existing.high, val) : val;
+      const low  = existing ? Prisma.Decimal.min(existing.low,  val) : val;
+
+      /* D. Finally upsert --------------------------------------------------- */
+      await prisma.priceBar.upsert({
+        where: {
+          launchAddress_bucketMs_kind: {
+            launchAddress,
+            bucketMs,
+            kind,
+          },
+        },
+        create: {
+          launchAddress,
+          bucketMs,
+          kind,
+          open,              // <-- now equals prev bar’s close
+          high,
+          low,
+          close: val,
+          mcapUsd: mcapDec,  // you already have this
+        },
+        update: {
+          high,
+          low,
+          close: val,
+          mcapUsd: mcapDec,
+        },
+      });
+    };
+
+    /* price row + mcap row */
+    await upsertBar('price', priceDec)
+    await upsertBar('mcap',  mcapDec)
+  }
+
+  return new Response(null, { status: 200 })
 }
 
-/*────────────────────────────  GET  ───────────────────────────────*/
+/*────────────────────────────  GET  ────────────────────────────*/
 export async function GET(
   _req: Request,
   { params }: { params: { addr: string } },
 ) {
-  try {
-    const prisma = await getDb()
-    const launchAddress = params.addr.toLowerCase()
-    
-    // Validate address format
-    if (!/^0x[a-f0-9]{40}$/i.test(launchAddress)) {
-      return errorResponse('Invalid address format', 400)
-    }
+  const prisma        = await getDb()
+  const launchAddress = params.addr.toLowerCase()
 
-    const trades = await prisma.trade.findMany({
-      where: { launchAddress, pending: false },
-      orderBy: { createdAt: 'desc' },
-    })
+  const trades = await prisma.trade.findMany({
+    where  : { launchAddress, pending: false },
+    orderBy: { createdAt: 'desc' },
+  })
 
-    return jsonResponse(trades)
-  } catch (error) {
-    console.error('GET /api/trades/[addr] error:', error)
-    return errorResponse('Internal server error', 500)
-  }
+  return new Response(JSON.stringify(trades))
 }

@@ -83,7 +83,6 @@ model PriceBar {
   high          Decimal
   low           Decimal
   close         Decimal
-  volume        Decimal  @default(0)
   mcapUsd       Decimal
 
   @@unique([launchAddress, bucketMs, kind])
