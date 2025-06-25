@@ -151,11 +151,17 @@ export default function ClaimCard({
   let label = ""
   let fnName: "claim" | "claimRefund" | "claimRefundIfLPFailed" | null = null
 
+  if (claimed) {
+    title  = "Claimed";
+    label  = "Claimed";
+    fnName = null;         
+  }
+
   const saleEnded = remaining === 0;
   const capReached = capRaw && raisedRaw ? raisedRaw >= capRaw : false;
   const lpAdded = !lpFailed;
 
-  if (view) {
+  if (!claimed && view) {
     if (!saleEnded) {
       if (capReached && finalized) {
         if (lpAdded) {
