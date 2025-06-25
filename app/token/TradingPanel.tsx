@@ -57,6 +57,7 @@ export default function TradingPanel({
         name: 'buyers',
         outputs: [
           { name: 'bnbPaid',         type: 'uint256' },
+          { name: 'netSpend',        type: 'uint256' },
           { name: 'tokensAllocated', type: 'uint256' },
           { name: 'claimed',         type: 'bool'    },
         ],
@@ -70,8 +71,8 @@ export default function TradingPanel({
     query: { enabled: Boolean(wallet), refetchInterval: 1000 },
   })
 
-  const allocated = buyer && Array.isArray(buyer) && buyer[1] !== undefined 
-  ? Number(buyer[1]) / 1e18 
+  const allocated = buyer && Array.isArray(buyer) && buyer[2] !== undefined 
+  ? Number(buyer[2]) / 1e18 
   : 0;
 
   const { data: bnbBalBig, refetch: refetchBal } = useBalance({
