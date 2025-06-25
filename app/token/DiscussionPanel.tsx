@@ -46,8 +46,8 @@ export default function DiscussionPanel({
   const { address, isConnected } = useAccount()
   
   const {
-    data: flat = [],    // array from the API (root + replies flat)
-    mutate,             // call after POST to refresh
+    data: flat = [],  
+    mutate,           
   } = useSWR<Comment[]>(
     () => `/api/comments/${launchAddress}`,
     fetcher
@@ -85,22 +85,20 @@ export default function DiscussionPanel({
   }
 
   function formatUTC(ts: number) {
-    const iso = new Date(ts).toISOString()      // "2025-06-17T14:23:05.123Z"
-    const [date, rest] = iso.split("T")         // ["2025-06-17", "14:23:05.123Z"]
-    const time = rest.slice(0, 8)               // "14:23:05"
+    const iso = new Date(ts).toISOString()   
+    const [date, rest] = iso.split("T")      
+    const time = rest.slice(0, 8)            
     return date + "\u00A0\u00A0\u00A0" + time + " UTC"
   }
 
   return (
     <div>
-      {/* ─── Descriptive paragraph above the comment field ─── */}
       <h2 className="text-[#c8cdd1] text-lg font-semibold max-[480px]:font-bold mb-2 max-[480px]:text-[clamp(1rem,3.5vw,1.5rem)]">
         {tokenName ?? "Token"} ({tokenSymbol ?? "Symbol"})
       </h2>
       <p className="text-[#c8cdd1] text-sm leading-relaxed mb-4 text-[clamp(0.6rem,3vw,0.875rem)]">
         {description || "No description."}
       </p>
-      {/* ─── Input row + live character count ─── */}
       <div className="relative pt-2 w-full">
         <textarea
           disabled={!isConnected}
@@ -138,7 +136,6 @@ export default function DiscussionPanel({
         {commentText.length}/250
       </span>
 
-      {/* ─── “Post Comment” button ─── */}
       <div className="flex justify-end pb-4 w-full">
         <Button
           disabled={!isConnected || commentText.trim() === '' }
@@ -153,7 +150,7 @@ export default function DiscussionPanel({
               }),
             });
             setCommentText("");
-            mutate();                     // reload list from DB
+            mutate();                 
           }}
           size="sm"
           variant="outline"
@@ -167,7 +164,6 @@ export default function DiscussionPanel({
         </Button>
       </div>
 
-      {/* ─── Comment list (recursively render) ─── */}
       <div
         className="theme-textarea overflow-y-auto overflow-x-hidden space-y-4 px-2 scrollbar-thin scrollbar-thumb-[#19c0f4]/60 scrollbar-track-[#21325e] max-h-[36rem]"
       >
@@ -178,7 +174,6 @@ export default function DiscussionPanel({
         ) : (
           comments.map((c) => (
             <div key={c.id} className="space-y-2">
-              {/* ─── Single comment row ─── */}
               <div className="flex gap-3 w-full">
                 <Avatar className="w-8 h-8 flex-shrink-0">
                   <AvatarImage src={`/avatars/${c.profile.avatarIndex}.png?height=32&width=32`} />
@@ -208,7 +203,6 @@ export default function DiscussionPanel({
                 </div>
               </div>
 
-              {/* ─── Reply textarea if replying to this comment ─── */}
               {replyToId === c.id && (
                 <div className="ml-10 mt-2 pr-4 pt-1 pl-1 max-w-full overflow-x-hidden">
                   <textarea
@@ -263,7 +257,6 @@ export default function DiscussionPanel({
                 </div>
               )}
 
-              {/* ─── Nested replies (if any) ─── */}
               {c.replies.length > 0 && (
                 <div className="ml-10 space-y-4 mt-4 w-full">
                   {c.replies.map((r) => (

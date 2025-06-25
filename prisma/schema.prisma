@@ -1,15 +1,12 @@
-//  ─── Generator ───────────────────────────────────────────────────────────
 generator client {
   provider = "prisma-client-js"
 }
 
-//  ─── Datasource ──────────────────────────────────────────────────────────
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-//  ─── Models ──────────────────────────────────────────────────────────────
 model Launch {
   launchAddress String   @id @db.VarChar(42)
   tokenAddress  String   @db.VarChar(42)
@@ -37,15 +34,15 @@ model Trade {
   launchAddress String   @db.VarChar(42)
 
   wallet        String   @db.VarChar(42)
-  type          String               // "Buy" | "Sell"
+  type          String             
 
   bnbAmount   Decimal @db.Decimal(24, 18) @default(0)
   tokenAmount Decimal @db.Decimal(32, 0)  @default(0)
 
   txHash        String   @unique @db.VarChar(66)
 
-  pending       Boolean  @default(true)  // ← new flag
-  createdAt     DateTime @default(now()) // will be overwritten with block-time
+  pending       Boolean  @default(true)  
+  createdAt     DateTime @default(now()) 
 
   @@index([launchAddress, createdAt])
 }
@@ -78,5 +75,5 @@ model PriceUpdate {
   insertedAt    DateTime @default(now())
 
   @@index([launchAddress, kind, timestamp])
-  @@map("price_updates")          // ← actual table name
+  @@map("price_updates")       
 }

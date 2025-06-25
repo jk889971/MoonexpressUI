@@ -25,7 +25,6 @@ export default function ClaimCard({
   const { address: account } = useAccount();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Combined data fetching
   const { data: view, refetch: refetchView } = useReadContract({
     address: launchAddress,
     abi: launchAbi,
@@ -57,7 +56,6 @@ export default function ClaimCard({
     query: { enabled: Boolean(account) },
   });
 
-  // Parse data
   const [
     isRefundable,
     claimLP,
@@ -70,21 +68,18 @@ export default function ClaimCard({
   const [bnbPaid = 0n, tokensAllocated = 0n, claimed = false] =
     (rawBuyer || []) as unknown as [bigint, bigint, boolean] || [];
 
-  // Combined refetch function
   const refetchAll = () => {
     refetchView();
     refetchFinalized();
     refetchRawBuyer();
   };
 
-  // Refetch on every block
   useEffect(() => {
     if (block) {
       refetchAll();
     }
   }, [block]);
 
-  // Watch for contract events
   useEffect(() => {
     if (!launchAddress) return;
     
@@ -100,20 +95,15 @@ export default function ClaimCard({
 
   const { writeContractAsync, isPending: claiming } = useWriteContract()
 
-  /* ------------------------------------------------------------------ */
-  /* Countdown with proper cleanup ------------------------------------- */
-  /* ------------------------------------------------------------------ */
   const [remaining, setRemaining] = useState(0)
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
 
   useEffect(() => {
-    // Clear any existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     
-    // Only set new timer if not finalized and end time exists
     if (endTimeRaw && !finalized) {
       timerRef.current = setInterval(() => {
         setNow(prev => prev + 1);
@@ -131,7 +121,6 @@ export default function ClaimCard({
     if (!endTimeRaw) return;
     const end = Number(endTimeRaw);
     
-    // Reset to zero immediately when finalized
     if (finalized) {
       setRemaining(0);
     } else {
@@ -139,7 +128,6 @@ export default function ClaimCard({
     }
   }, [endTimeRaw, now, finalized]);
 
-  // Reset now when finalized to trigger the effect
   useEffect(() => {
     if (finalized) {
       setNow(Math.floor(Date.now() / 1000));
@@ -159,23 +147,17 @@ export default function ClaimCard({
 
   const fmt = (n: number) => n.toString().padStart(2, "0")
 
-  /* ------------------------------------------------------------------ */
-  /* Claim logic with immediate state detection ----------------------- */
-  /* ------------------------------------------------------------------ */
   let title = "Loading…"
   let label = ""
   let fnName: "claim" | "claimRefund" | "claimRefundIfLPFailed" | null = null
 
-  // Calculate key states
   const saleEnded = remaining === 0;
   const capReached = capRaw && raisedRaw ? raisedRaw >= capRaw : false;
   const lpAdded = !lpFailed;
 
   if (view) {
     if (!saleEnded) {
-      // During sale window
       if (capReached && finalized) {
-        // Cap hit before expiry
         if (lpAdded) {
           title = label = claimLP ? "Claim LPs" : "Claim Tokens"
           fnName = "claim"
@@ -184,15 +166,12 @@ export default function ClaimCard({
           fnName = "claimRefundIfLPFailed"
         }
       } else {
-      // Sale still live and cap not reached
       if (isRefundable) {
-        // refunds allowed during the sale
         title = label = claimLP
           ? "Claim LPs or Refund"
           : "Claim Tokens or Refund";
         fnName = null
       } else {
-        // non-refundable sale
         title = label = claimLP
           ? "Claim LPs or Sell"
           : "Claim Tokens or Sell";
@@ -200,9 +179,7 @@ export default function ClaimCard({
       }
     }
     } else {
-      // After sale end
       if (!capReached) {
-        // Cap not reached → refunds only if refundable
         if (isRefundable) {
           title = label = "Claim Refund"
           fnName = "claimRefund"
@@ -211,7 +188,6 @@ export default function ClaimCard({
           fnName = null
         }
       } else {
-        // Cap reached and sale ended → normal claim or LP-fail refund
         if (lpAdded) {
           title = label = claimLP ? "Claim LPs" : "Claim Tokens"
           fnName = "claim"
@@ -223,37 +199,28 @@ export default function ClaimCard({
     }
   }
 
-  // Check if user has anything to claim
   const nothingToClaim = claimed || 
     (fnName === "claim" && tokensAllocated === 0n) ||
     (fnName?.startsWith("claimRefund") && bnbPaid === 0n);
 
-  // Button disabled state
   const disabled = claiming || !fnName || nothingToClaim;
 
-  /* ------------------------------------------------------------------ */
-  /* Click handler with immediate state refresh ----------------------- */
-  /* ------------------------------------------------------------------ */
   async function handleClick() {
     if (!launchAddress || !fnName || nothingToClaim) return;
 
     try {
-      // 1️⃣ Fire the claim transaction; Wagmi will estimate gas for you
       const hash = await writeContractAsync({
         address:      launchAddress,
         abi:          launchAbi,
         functionName: fnName,
         chainId:      bscTestnet.id,
-        // no gasLimit field needed—Wagmi handles it
       });
 
-      // 2️⃣ Optionally wait for on-chain confirmation
       await publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 1,
       });
 
-      // 3️⃣ Refresh your UI state
       refetchAll();
     } catch (err: any) {
       console.error("Claim failed:", err);
@@ -265,9 +232,6 @@ export default function ClaimCard({
     }
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Loading state ---------------------------------------------------- */
-  /* ------------------------------------------------------------------ */
   if (!launchAddress || !view) {
     return (
       <Card className="bg-[#132043] border-[#21325e] rounded-xl p-6 text-center">
@@ -276,9 +240,6 @@ export default function ClaimCard({
     )
   }
 
-  /* ------------------------------------------------------------------ */
-  /* UI --------------------------------------------------------------- */
-  /* ------------------------------------------------------------------ */
   return (
     <Card className="bg-[#132043] border-[#21325e] rounded-xl">
       <CardHeader className="pb-4 text-center">
@@ -286,7 +247,6 @@ export default function ClaimCard({
       </CardHeader>
 
       <CardContent className="p-6 space-y-6">
-        {/* Countdown */}
         <div className="text-center">
           <div
             className="
@@ -310,7 +270,6 @@ export default function ClaimCard({
           </div>
         </div>
 
-        {/* Action button */}
         <Button
           disabled={disabled}
           onClick={handleClick}
@@ -331,9 +290,6 @@ export default function ClaimCard({
   )
 }
 
-/* ------------------------------------------------------------------ */
-/* Helper components ------------------------------------------------- */
-/* ------------------------------------------------------------------ */
 function TimeCell({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex flex-col items-center">

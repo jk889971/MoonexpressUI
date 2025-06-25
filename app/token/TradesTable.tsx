@@ -13,8 +13,8 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
     `/api/trades/${launchAddress}`,
     fetcher,
     {
-      refreshInterval: 5000,      // 🔄 re-fetch every 5 seconds
-      revalidateOnFocus: true,    // also refresh on tab-focus
+      refreshInterval: 5000,   
+      revalidateOnFocus: true, 
     }
   )
 
@@ -28,7 +28,7 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
       });
       if (!res.ok) throw new Error('Failed to fetch launch info');
       const data = await res.json();
-      return data[0]; // first item
+      return data[0];
     },
     { refreshInterval: 0 }
   );

@@ -18,13 +18,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Basic app metadata */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        {/* Manifest */}
         <link rel="manifest" href="/site.webmanifest" />
 
-        {/* Favicons */}
         <link
           rel="apple-touch-icon"
           sizes="180x180"

@@ -11,7 +11,6 @@ export default function SiteNavbar() {
 
   return (
     <>
-      {/* ─────────── TOP NAVBAR ─────────── */}
       <header
         className="
           z-20 
@@ -21,17 +20,14 @@ export default function SiteNavbar() {
           max-[250px]:items-center     /* center‐align children at ≤250px */
         "
       >
-        {/* ─── LEFT SIDE (Logo) ─── */}
         <Link href="/" className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            {/* full‐logo.png is shown when width > 400px */}
             <img
               src="/fulllogo.png"
               alt="Moonexpress"
               className="h-8 max-[400px]:hidden"
             />
 
-            {/* logo.png is shown when width ≤ 400px */}
             <img
               src="/logo.png"
               alt="M"
@@ -40,7 +36,6 @@ export default function SiteNavbar() {
           </div>
         </Link>
 
-        {/* ─── CENTER LINKS (only ≥ 900px) ─── */}
         <nav className="hidden min-[900px]:flex flex-1 justify-center space-x-8">
           <a
             href="/"
@@ -65,15 +60,12 @@ export default function SiteNavbar() {
           </a>
         </nav>
 
-        {/* ─── RIGHT SIDE (Icons + Connect Wallet) ─── */}
-        {/* At ≤ 250 px, flex-col means this entire div sits below the logo */}
         <div
           className="
             flex items-center gap-4 
             max-[250px]:mt-2           /* small gap above at ≤250px */
           "
         >
-          {/* Icon buttons hidden at ≤ 500px */}
           <div className="flex space-x-0 max-[500px]:hidden">
             <Button variant="ghost" size="icon" className="text-[#19c0f4]">
               <Send className="w-6 h-6" />
@@ -83,7 +75,6 @@ export default function SiteNavbar() {
               size="icon"
               className="text-[#19c0f4] transition-colors duration-300"
             >
-              {/* Custom “X”-style SVG from your cards */}
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
@@ -93,7 +84,6 @@ export default function SiteNavbar() {
         </div>
       </header>
 
-      {/* ─────────── BOTTOM MOBILE MENU (only < 1024px) ─────────── */}
       <div
         className="
           fixed bottom-0 left-0 right-0 z-[996]
@@ -103,7 +93,6 @@ export default function SiteNavbar() {
           hidden max-[1023px]:flex
         "
       >
-        {/* Home link */}
         <a
           href="/"
           className={`
@@ -132,7 +121,6 @@ export default function SiteNavbar() {
           <span className="text-[0.65rem]">Home</span>
         </a>
 
-        {/* Create Token link (rocket instead of plus) */}
         <a
           href="/create"
           data-testid="create-coin-button-mobile-menu"
@@ -154,7 +142,6 @@ export default function SiteNavbar() {
             fill="none"
             className="h-[30px] w-[30px]"
           >
-            {/* Your rocket path */}
             <path
               d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"
               fill="currentColor"
@@ -163,7 +150,6 @@ export default function SiteNavbar() {
           <span className="text-[0.65rem]">Create</span>
         </a>
 
-        {/* Docs link */}
         <a
           href="#"
           className="

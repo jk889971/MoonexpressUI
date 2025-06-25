@@ -18,7 +18,6 @@ export default function TokenPage() {
   const deployBlock = search.get('b')
   const symbol      = search.get("s") ?? "";
 
-  // ① read the launchProxy from the factory:
   const { data: launchProxy } = useReadContract({
     address: FACTORY_ADDRESS,
     abi: factoryAbi,
@@ -26,15 +25,14 @@ export default function TokenPage() {
     args: address ? [address as `0x${string}`] : undefined as any,
     chainId: bscTestnet.id,
     query: {
-      enabled: Boolean(address),  // now respected
-      staleTime: 0,               // optional: force fresh every time
+      enabled: Boolean(address), 
+      staleTime: 0,              
     },
   })
 
   if (!address || !launchProxy) {
     return (
      <div className="flex flex-col min-h-screen">
-       {/* this will fill all space above the footer */}
        <div className="flex-grow flex items-center justify-center p-8">
          <img
            src="/loading.gif"

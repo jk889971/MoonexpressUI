@@ -5,7 +5,7 @@ import * as React from 'react'
 import { WagmiConfig }             from 'wagmi'
 import {
   RainbowKitProvider,
-  darkTheme,          // ← add
+  darkTheme,       
 } from '@rainbow-me/rainbowkit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@rainbow-me/rainbowkit/styles.css'
@@ -21,16 +21,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           chains={chains}
-          /** ----- DARK THEME -------------- */
           theme={darkTheme({
-            accentColor:          '#19c0f4',   // your cyan brand colour
-            accentColorForeground:'#000025',   // text on the accent
-            borderRadius:         'medium',    // or 'small' | 'large'
-            fontStack:            'system',    // matches Tailwind default
-            overlayBlur:          'small',     // subtle glass effect
+            accentColor:          '#19c0f4',  
+            accentColorForeground:'#000025',  
+            borderRadius:         'medium',   
+            fontStack:            'system',   
+            overlayBlur:          'small',    
           })}
-          /** ----- COMPACT MODAL ----------- */
-          modalSize="compact"                 // or 'wide'
+          modalSize="compact"           
         >
           {children}
         </RainbowKitProvider>

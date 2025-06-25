@@ -8,7 +8,6 @@ import { bscTestnet } from "@/lib/chain";
 
 export async function GET() {
   try {
-    // 1️⃣ on-chain
     const publicClient = createPublicClient({ chain: bscTestnet, transport: http() });
     const countBn = (await publicClient.readContract({
       address: FACTORY_ADDRESS,
@@ -35,11 +34,10 @@ export async function GET() {
       });
     }
 
-    // 2️⃣ off-chain metadata + deployBlock
     const metas = await prisma.launch.findMany({
       select: {
         launchAddress: true,
-        deployBlock:   true,      // ◀️ pull the block number
+        deployBlock:   true,
         description:   true,
         twitterUrl:    true,
         telegramUrl:   true,
@@ -51,7 +49,6 @@ export async function GET() {
       metas.map(m => [m.launchAddress.toLowerCase(), m])
     );
 
-    // 3️⃣ merge them
     const merged = launchesOnChain.map(lc => {
       const key = lc.launchAddress.toLowerCase();
       const meta = metaMap[key] ?? {};

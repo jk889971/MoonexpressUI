@@ -3,29 +3,25 @@ import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
-    // 1) grab the File that the browser sent
     const form = await req.formData()
     const file = form.get("file") as File | null
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    // 2) build Pinata form-data using the File directly
     const pinata = new FormData()
-    pinata.append("file", file, file.name) // File is a Blob, includes name
+    pinata.append("file", file, file.name)
     pinata.append(
       "pinataMetadata",
       JSON.stringify({ name: file.name, keyvalues: { app: "Moonexpress" } })
     )
 
-    // 3) send to Pinata; fetch and FormData are globals in Next.js API routes
     const res = await fetch(
       "https://api.pinata.cloud/pinning/pinFileToIPFS",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.PINATA_JWT}`, 
-          // no need for Content-Type / boundary; next/runtime will set it
+          Authorization: `Bearer ${process.env.PINATA_JWT}`,
         },
         body: pinata,
       }

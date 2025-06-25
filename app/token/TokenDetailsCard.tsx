@@ -64,7 +64,6 @@ export default function TokenDetailsCard({
   const capBI = safeBigInt(cap);
   const raisedBI = safeBigInt(raised);
 
-  /* already finalised?  (== LPs added & curve closed) */
   const { data: finalized } = useReadContract({
     address: launchAddress,
     abi: launchAbi,
@@ -73,7 +72,6 @@ export default function TokenDetailsCard({
     query: { enabled: Boolean(launchAddress) },
   })
 
-  /* emergency drain mode? */
   const { data: drainMode } = useReadContract({
     address: launchAddress,
     abi: launchAbi,
@@ -82,13 +80,11 @@ export default function TokenDetailsCard({
     query: { enabled: Boolean(launchAddress) },
   })
 
-  /* how many BNB are still available? */
   const remainingBNB =
     finalized || drainMode ? 0
     : capBI && raisedBI     ? Number(capBI - raisedBI) / 1e18
     : null
 
-  /* NEW – imageURI stored when the launch was created */
   const { data: ipfsUri } = useReadContract({
     address: launchAddress,
     abi: launchAbi,
@@ -105,7 +101,6 @@ export default function TokenDetailsCard({
   const twitterLink  = meta?.twitterUrl  ? normalizeUrl(meta.twitterUrl)  : "#";
   const websiteLink  = meta?.websiteUrl  ? normalizeUrl(meta.websiteUrl)  : "#";
 
-  /* turn "ipfs://CID…" into an http gateway url */
   const imgSrc =
     typeof ipfsUri === "string" && ipfsUri.startsWith("ipfs://")
       ? `https://ipfs.io/ipfs/${ipfsUri.slice(7)}`
@@ -117,11 +112,9 @@ export default function TokenDetailsCard({
 
   const barWidth = `${curvePct}%`
 
-  /* ────────── UI ────────── */
   return (
     <Card className="bg-[#132043] border-[#21325e] rounded-xl">
       <CardContent className="p-6 space-y-6">
-        {/* ─── Header row ─── */}
         <div className="flex items-center gap-4 max-[480px]:flex-col max-[480px]:gap-2 max-[480px]:items-center">
           <Avatar className="w-12 h-12 max-[640px]:w-10 max-[640px]:h-10 max-[480px]:w-8 max-[480px]:h-8">
             {imgSrc && <AvatarImage src={imgSrc} alt="token logo" />}
@@ -150,7 +143,6 @@ export default function TokenDetailsCard({
           </div>
         </div>
 
-        {/* ─── Row: Telegram and Twitter buttons ─── */}
         <div
           className="
             flex gap-3
@@ -215,7 +207,6 @@ export default function TokenDetailsCard({
           </Button>
         </div>
 
-        {/* ─── Row: Website button centered ─── */}
         <div className="flex justify-center">
           <div className="w-1/2 max-[480px]:w-full">
             <Button
@@ -245,7 +236,6 @@ export default function TokenDetailsCard({
           </div>
         </div>
 
-        {/* ─── Progress ─── */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-white font-medium text-base max-[640px]:text-sm max-[480px]:text-xs">

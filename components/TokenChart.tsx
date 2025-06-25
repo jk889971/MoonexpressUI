@@ -17,10 +17,8 @@ export default function TokenChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef    = useRef<any>(null);
 
-  // Toggle between price and market-cap
   const [chartType, setChartType] = useState<'price' | 'marketcap'>('price');
 
-  // Memoize both feeds
   const priceFeed     = useMemo(
     () => makePriceFeed(launchAddress, deployBlock ?? 0n, symbol),
     [launchAddress, deployBlock, symbol]
@@ -73,7 +71,6 @@ export default function TokenChart({
 
     widgetRef.current = tv;
 
-    // Add our styled Price/MCap toggle
     tv.onChartReady(() => {
       tv.headerReady().then(() => {
         const btn = tv.createButton();
@@ -82,7 +79,6 @@ export default function TokenChart({
           setChartType(prev => (prev === 'price' ? 'marketcap' : 'price'));
         });
 
-        // build “Price/MCap” with only the active one bold+teal
         const priceSpan = document.createElement('span');
         priceSpan.textContent = 'Price';
         priceSpan.style.fontWeight = chartType === 'price' ? 'bold' : 'normal';

@@ -55,7 +55,6 @@ export default function MoonexpressTradingInterface({
 
   useEffect(() => {
     if (!block) return;
-    // Invalidate all launch-related queries on every block
     qc.invalidateQueries({
       predicate: (query) => {
         const queryKey = query.queryKey;
@@ -104,7 +103,6 @@ export default function MoonexpressTradingInterface({
     query: { refetchInterval: 1000 },
   });
 
-  /* already finalised?  (== LPs added & curve closed) */
   const { data: finalized } = useReadContract({
     address: launchAddress,
     abi: launchAbi,
@@ -113,7 +111,6 @@ export default function MoonexpressTradingInterface({
     query: { refetchInterval: 1000 },
   })
 
-  /* emergency drain mode? */
   const { data: drainMode } = useReadContract({
     address: launchAddress,
     abi: launchAbi,
@@ -129,7 +126,7 @@ export default function MoonexpressTradingInterface({
     chainId: bscTestnet.id,
   });
 
-  const endTime = times ? Number(times[2]) : 0;   // 3rd value = endTime
+  const endTime = times ? Number(times[2]) : 0;  
   const lpFailed = times ? Boolean(times[5]) : false;
   const raisedBI = safeBigInt(raised) ?? 0n;
   const capBI    = safeBigInt(cap)    ?? 0n;
@@ -178,21 +175,20 @@ export default function MoonexpressTradingInterface({
     }
   }
 
-  let dotColor = "bg-green-400";   // default (Live)
-  let dotGlow  = "shadow-[0_0_6px_2px_rgba(34,197,94,.8)]";   // default glow
+  let dotColor = "bg-green-400";  
+  let dotGlow  = "shadow-[0_0_6px_2px_rgba(34,197,94,.8)]"; 
 
   if (status.endsWith("Migrated")) {
-    dotColor = "bg-green-800";     // dim-green, no glow
+    dotColor = "bg-green-800";   
     dotGlow  = "";
   } else if (status.endsWith("Failed")) {
-    dotColor = "bg-red-500";       // red, no glow
+    dotColor = "bg-red-500";     
     dotGlow  = "";
   } else if (status.endsWith("Refunded")) {
-    dotColor = "bg-yellow-400";    // yellow, no glow
+    dotColor = "bg-yellow-400";  
     dotGlow  = "";
   }
 
-  // 3) Autosize logic for the main “Post Comment” textarea
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -206,25 +202,19 @@ export default function MoonexpressTradingInterface({
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-6 lg:px-10 max-[480px]:px-0">
       <div className="grid gap-6 lg:gap-x-6 lg:gap-y-0 p-6 lg:[grid-template-columns:1fr_clamp(18rem,22vw,26rem)] items-start">
-        {/* Main Content */}
         <div className="lg:grid lg:[grid-template-rows:auto_1fr] flex flex-col gap-6 min-w-0">
           <div className="order-1 lg:order-none lg:row-start-1 lg:col-start-1 flex flex-col gap-6">
-            {/* ─────── TOKEN INFO + CHART ─────── */}
             <Card className="bg-[#132043] border-[#21325e] rounded-xl">
               <CardContent className="space-y-6">
-                {/* CHART HEADER  –– removed border-t to kill the grey line */}
                 <div className="flex items-center justify-between pt-6">
                   <div className="flex items-center gap-2">
-                    {/* tiny status-dot */}
                     <span
                       className={`flex-shrink-0 h-2.5 w-2.5 rounded-full ${dotColor} ${dotGlow}`}
                     />
-                    {/* text label */}
                     <span className="text-white font-semibold">{status}</span>
                   </div>
                 </div>
 
-                {/* CHART BODY –– taller (h-[26rem]) + even padding bottom-4 */}
                 <div className="h-[32rem] bg-[#0e1a38] rounded-lg p-4 relative overflow-hidden max-[370px]:p-0 max-[370px]:-mx-3 max-[370px]:-mb-6">
                   <TokenChart launchAddress={launchAddress} deployBlock={deployBlock} symbol={symbol} />
                 </div>
@@ -232,7 +222,6 @@ export default function MoonexpressTradingInterface({
             </Card>
           </div>
 
-          {/* ─── Desktop: Discussion vs. Trades tab ─── */}
           <Card className="hidden lg:block bg-[#132043] border-[#21325e] rounded-xl order-5 lg:row-start-2 lg:col-start-1">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -284,7 +273,6 @@ export default function MoonexpressTradingInterface({
         </div>
         
         <div className="order-2 lg:order-none lg:row-start-1 lg:row-span-2 lg:col-start-2 flex flex-col gap-6 min-w-0">
-          {/* Trading Panel */}
           <div className="hidden lg:block">
             <TradingPanel
               initialTab={tradingTab}
@@ -296,7 +284,6 @@ export default function MoonexpressTradingInterface({
             />
           </div>
 
-          {/** ─── MOBILE-ONLY TABS CARD (<1024px) ─── **/}
           <Card className="bg-[#132043] border-[#21325e] rounded-xl lg:hidden">
             <CardHeader className="pb-0">
               <div className="flex gap-6 justify-center">
@@ -347,7 +334,6 @@ export default function MoonexpressTradingInterface({
             </CardContent>
           </Card>
 
-        {/* Right Sidebar */}
           <div className="hidden lg:flex flex-col gap-6">
             <TokenDetailsCard
               tokenAddress={tokenAddress}
@@ -357,7 +343,6 @@ export default function MoonexpressTradingInterface({
           </div>
         </div>
       </div>
-      {/* ─── Mobile Buy/Sell bar (only on <1024px) ─── */}
       <div
        className="
          fixed 
@@ -379,7 +364,6 @@ export default function MoonexpressTradingInterface({
        "
        style={{ bottom: "64px" }}
      >
-       {/* BUY pill */}
        <button
           disabled={!canBuyNow}
           className={`
@@ -399,7 +383,6 @@ export default function MoonexpressTradingInterface({
          Buy
        </button>
 
-       {/* SELL pill */}
        {showSell && (
        <button
           disabled={!canSellNow}
@@ -422,7 +405,6 @@ export default function MoonexpressTradingInterface({
        )}
      </div>
 
-     {/* ─── Conditionally render the bottom-sheet when showTradeSheet === true ─── */}
      {mountedSheet && (
        <TradeFormBottomSheet
         initialTab={bottomSheetTab}

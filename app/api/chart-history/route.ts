@@ -4,9 +4,9 @@ import { prisma } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const launch = req.nextUrl.searchParams.get('launch')?.toLowerCase();
-  const kind   = req.nextUrl.searchParams.get('kind');           // 'price' | 'mcap'
-  const from   = Number(req.nextUrl.searchParams.get('from'));   // seconds
-  const to     = Number(req.nextUrl.searchParams.get('to'));     // seconds
+  const kind   = req.nextUrl.searchParams.get('kind');
+  const from   = Number(req.nextUrl.searchParams.get('from'));
+  const to     = Number(req.nextUrl.searchParams.get('to'));
 
   if (!launch || !kind || Number.isNaN(from) || Number.isNaN(to))
     return new Response('Bad query', { status: 400 });

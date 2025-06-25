@@ -17,7 +17,6 @@ import { Search, Globe } from "lucide-react"
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher"
 
-// Countdown timer component
 function CountdownTimer({ endTime }: { endTime: number }) {
   const [timeLeft, setTimeLeft] = useState(0)
 
@@ -59,7 +58,6 @@ function CountdownTimer({ endTime }: { endTime: number }) {
   return <div className="text-sm text-[#19c0f4] font-mono">{formatTime(timeLeft)}</div>
 }
 
-// Helper to get token status
 function getTokenStatus(
   refundable: boolean,
   finalized: boolean,
@@ -97,12 +95,10 @@ export default function Component() {
   const [showLPs, setShowLPs] = useState(true)
   const starfieldRef = useRef<HTMLCanvasElement | null>(null);
   
-  // Fix 1: Handle loading states
   const { data: staticLaunches, isLoading: staticLoading } = useSWR('/api/launches', fetcher);
   const staticLaunchesArray = Array.isArray(staticLaunches) ? staticLaunches : [];
   const launchAddresses = staticLaunchesArray.map((l: any) => l.launchAddress);
 
-  // Fix 2: Add error handling to dynamic fetch
   const { 
     data: dynamicData = [], 
     isLoading: dynamicLoading,
@@ -120,14 +116,12 @@ export default function Component() {
     { refreshInterval: 5000 }
   );
   
-  // Fix 3: Add debug logs
   useEffect(() => {
     console.log('Static launches:', staticLaunches);
     console.log('Dynamic data:', dynamicData);
     if (dynamicError) console.error('Dynamic data error:', dynamicError);
   }, [staticLaunches, dynamicData, dynamicError]);
 
-  // Fix 5: Add safe access to dynamic properties
   const launches = staticLaunchesArray.map((staticLaunch: any) => {
     const dynamic = dynamicData.find(
       (d: any) => d.launchAddress === staticLaunch.launchAddress
@@ -136,7 +130,6 @@ export default function Component() {
     return {
       ...staticLaunch,
       ...dynamic,
-      // Safely handle potentially undefined values
       status: getTokenStatus(
         dynamic.isRefundable || false,
         dynamic.finalized || false,
@@ -147,7 +140,6 @@ export default function Component() {
     };
   });
   
-  // 1) Apply tag-toggles (we’ll assume you’ve added those three pieces of state)
   let working = launches.filter(l => {
     if (!showCreator && l.creatorPreBuys) return false
     if (!showNonRefundable && !l.isRefundable) return false
@@ -155,13 +147,11 @@ export default function Component() {
     return true
   })
 
-  // 2) Sort by the selected sortBy value
   if (sortBy === "newest") {
     working.sort((a, b) => b.createdAt - a.createdAt)
   } else if (sortBy === "oldest") {
     working.sort((a, b) => a.createdAt - b.createdAt)
-  } else { // "market-cap"
-    // live ones first, each group sorted desc by marketCapUSD
+  } else { 
     const live = working.filter(l => l.status === "Live")
     const other = working.filter(l => l.status !== "Live")
     live.sort((a, b) => (b.marketCapUSD || 0) - (a.marketCapUSD || 0))
@@ -173,13 +163,11 @@ export default function Component() {
     setCurrentPage(1)
   }, [searchQuery, sortBy, showCreator, showNonRefundable, showLPs])
 
-  // 3) Then apply your text-search filter
   const filteredAndSorted = working.filter(l =>
     l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     l.symbol.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // 4) Finally, paginate filteredAndSorted:
   const indexOfLast  = currentPage * cardsPerPage
   const indexOfFirst = indexOfLast - cardsPerPage
   const currentLaunches = filteredAndSorted.slice(indexOfFirst, indexOfLast)
@@ -202,7 +190,6 @@ export default function Component() {
     return () => window.removeEventListener("resize", updateCardsPerPage);
   }, []);
 
-  /* ─── (1) STATIC star-field – no mouse interaction ─── */
   useEffect(() => {
     let frameId: number = 0
 
@@ -211,8 +198,8 @@ export default function Component() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const DENSITY = 8_000           // px² / star   (smaller ⇒ more)
-    const RADII   = [1, 1.5, 2.2]   // three dot sizes
+    const DENSITY = 8_000          
+    const RADII   = [1, 1.5, 2.2]  
 
     type Dot = { x: number; y: number; r: number }
     let dots: Dot[] = []
@@ -248,7 +235,6 @@ export default function Component() {
     }
   }, [])
 
-  /* ─── (2) Shooting stars – upper-left ➜ lower-right ─── */
   useEffect(() => {
     const canvas = starfieldRef.current
     if (!canvas) return
@@ -260,21 +246,21 @@ export default function Component() {
     const spawn = () => {
       if (!active) return
 
-      const margin = 80                              // stars start off-screen
-      const startX = -margin + Math.random() * (canvas.width * 0.25)  // –80 → 25 % width
-      const startY = -margin + Math.random() * (canvas.height * 0.25) // –80 → 25 % height
+      const margin = 80                             
+      const startX = -margin + Math.random() * (canvas.width * 0.25)  
+      const startY = -margin + Math.random() * (canvas.height * 0.25) 
 
-      const len    = 350 + Math.random() * 550       // 350 – 900 px
-      const endX   = startX + len                    // ↘ 45°
+      const len    = 350 + Math.random() * 550     
+      const endX   = startX + len                  
       const endY   = startY + len
 
-      const SPEED  = 1200                            // pixels per second
-      const duration = (len / SPEED) * 1000          // ms
+      const SPEED  = 1200                          
+      const duration = (len / SPEED) * 1000        
       const born = performance.now()
 
       const draw = (now: number) => {
         if (!active) return
-        const t = (now - born) / duration            // 0 → 1 over ‘duration’
+        const t = (now - born) / duration          
         if (t > 1) return
         ctx.save()
         ctx.globalAlpha = 1 - t
@@ -290,7 +276,6 @@ export default function Component() {
 
       requestAnimationFrame(draw)
 
-      /* schedule the next star in 2–4 s  */
       setTimeout(spawn, 2000 + Math.random() * 2000)
     }
 
@@ -313,11 +298,9 @@ export default function Component() {
         className="fixed inset-0 z-0 w-screen h-screen pointer-events-none select-none"
       />
       
-      {/** ─────────── HERO SECTION ─────────── **/}
       <section className="relative z-10 text-center py-16 px-6 overflow-hidden">
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex flex-col lg:flex-row items-center lg:justify-between justify-center">
-            {/* ─── Moon + Rocket Container ─── */}
             <div className="w-full lg:w-1/2 mb-8 lg:mb-0">
               <div
                 className="
@@ -330,14 +313,12 @@ export default function Component() {
                   mx-auto
                 "
               >
-                {/* Moon */}
                 <img
                   src="/moon.svg"
                   alt="Moon"
                   className="absolute inset-0 w-full h-full object-contain"
                 />
 
-                {/* Rocket */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <img
                     src="/rocket.png"
@@ -357,7 +338,6 @@ export default function Component() {
               </div>
             </div>
 
-            {/* ─── Text & Buttons ─── */}
             <div className="w-full lg:w-1/2 flex flex-col items-center lg:items-start">
               <h1
                 className="
@@ -424,23 +404,17 @@ export default function Component() {
         </div>
       </section>
 
-      {/** ─────────── BODY SECTION ─────────── **/}
       <div className="relative z-0">
         <section className="relative z-10 px-6 pb-16 pt-4">
           <div className="max-w-7xl mx-auto bg-[#0B152F] p-8 rounded-3xl">
-            {/* Combined container for Coins Created, Toggles, and Sort */}
             <div className="flex flex-col max-[900px]:items-center min-[900px]:flex-row min-[900px]:justify-between min-[900px]:items-center mb-4">
-              {/* Coins Created - Left-aligned on desktop, centered on mobile */}
               <div className="flex items-center space-x-4 max-[900px]:flex-col max-[900px]:space-y-1 max-[900px]:space-x-0 max-[900px]:mb-4">
                 <span className="text-3xl font-bold">{launches.length}</span>
                 <span className="text-xl text-white/60">Coins Created</span>
               </div>
 
-              {/* Right-side container for Toggles and Sort */}
               <div className="flex max-[900px]:flex-col gap-4 items-center">
-                {/* Toggles Container - Full width on mobile */}
                 <div className="flex flex-wrap justify-center gap-4 max-[900px]:w-full">
-                  {/* Creator Bought Toggle */}
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Creator Bought</span>
                     <input
@@ -464,7 +438,6 @@ export default function Component() {
                     </label>
                   </div>
 
-                  {/* Non-refundable Toggle */}
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Non-refundable</span>
                     <input
@@ -488,7 +461,6 @@ export default function Component() {
                     </label>
                   </div>
 
-                  {/* LPs Toggle */}
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-white">Claim LP Mode</span>
                     <input
@@ -513,7 +485,6 @@ export default function Component() {
                   </div>
                 </div>
 
-                {/* Sort dropdown - Full width on mobile */}
                 <div className="max-[900px]:w-full">
                   <Select onValueChange={(v) => setSortBy(v as any)} defaultValue={sortBy}>
                     <SelectTrigger className="bg-[#21325e]/50 border-[#21325e] text-white w-full">
@@ -546,7 +517,6 @@ export default function Component() {
               </div>
             </div>
 
-            {/* Search bar - Full width always */}
             <div className="mt-2 mb-6 w-full">
               <div className="relative w-full">
                 <Input
@@ -575,7 +545,7 @@ export default function Component() {
               ) : (
                 currentLaunches.map((launch: any) => {
                   
-                  let dotColor = "bg-green-400"   // default for Live
+                  let dotColor = "bg-green-400"  
                   let dotGlow  = "shadow-[0_0_6px_2px_rgba(34,197,94,.8)]"
 
                   if (launch.status === "Migrated") {
@@ -589,12 +559,10 @@ export default function Component() {
                     dotGlow  = ""
                   }
 
-                  // Convert IPFS URI to HTTP
                   const imageSrc = launch.imageURI?.startsWith("ipfs://") 
                     ? `https://ipfs.io/ipfs/${launch.imageURI.slice(7)}`
                     : launch.imageURI || "/placeholder.svg";
                   
-                  // Determine status label
                   const statusLabel = 
                     launch.status === "Live" && launch.isRefundable ? "Refunds in" : 
                     launch.status === "Live" && !launch.isRefundable ? "Sells unlocking in" : 
@@ -657,7 +625,6 @@ export default function Component() {
                             </div>
                           </div>
                           
-                          {/* Tags */}
                           <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1 justify-start max-[400px]:justify-center">
                             {launch.isRefundable ? (
                               <span className="bg-[#19c0f4]/20 text-[#19c0f4] text-xs px-2 py-1 rounded">
@@ -696,11 +663,8 @@ export default function Component() {
                             </div>
                           </div>
                           <div className="flex items-center justify-between p-4 max-[400px]:flex-col max-[400px]:items-center max-[400px]:space-y-2 max-[400px]:space-x-0">  
-                            {/* Social links - will appear second on mobile */}
                             <div className="flex space-x-2 max-[400px]:justify-center max-[400px]:space-x-2 max-[400px]:mt-2 max-[400px]:order-2">
-                              {/* ─── Social Links (always show icons, enable only when URL exists) ─── */}
                               <div className="flex space-x-2">
-                                {/** Website **/}
                                 {websiteLink ? (
                                   <a
                                     href={websiteLink}
@@ -716,7 +680,6 @@ export default function Component() {
                                   </span>
                                 )}
 
-                                {/** Telegram **/}
                                 {telegramLink ? (
                                   <a
                                     href={telegramLink}
@@ -736,7 +699,6 @@ export default function Component() {
                                   </span>
                                 )}
 
-                                {/** Twitter **/}
                                 {twitterLink ? (
                                   <a
                                     href={twitterLink}
@@ -757,7 +719,6 @@ export default function Component() {
                                 )}
                               </div>
                             </div>
-                            {/* Timer section - will appear first on mobile */}
                             <div className="flex flex-col items-end max-[400px]:items-center max-[400px]:order-1">
                               <div className="text-sm text-white/60 mb-1">{statusLabel}</div>
                               <CountdownTimer endTime={launch.endTime} />

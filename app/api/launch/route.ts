@@ -5,7 +5,6 @@ export async function POST(req: NextRequest) {
   const { prisma } = await import("@/lib/db")
   const body = await req.json()
 
-  // normalise ⬇
   const launchAddr = (body.launchAddr as string).toLowerCase()
   const tokenAddr  = (body.tokenAddr  as string).toLowerCase()
   const deployBlock = Number(body.deployBlock)

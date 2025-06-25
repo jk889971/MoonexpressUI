@@ -41,7 +41,7 @@ export default function ConnectWalletButton() {
             }}
           >
             {connected
-              ? // short‐hand display when connected
+              ? 
                 `${account.displayName.slice(0,6)}…${account.displayName.slice(-4)}`
               : "Connect Wallet"}
           </button>

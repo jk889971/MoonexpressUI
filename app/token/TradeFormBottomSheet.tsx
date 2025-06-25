@@ -25,7 +25,6 @@ export default function TradeFormBottomSheet({
 }: TradeFormBottomSheetProps) {
   return (
     <Fragment>
-      {/* 1) Full‐screen, semi-transparent backdrop */}
       <div
         className="
           fixed inset-0 
@@ -37,7 +36,6 @@ export default function TradeFormBottomSheet({
         onClick={onClose}
       />
 
-      {/* 2) Bottom sheet container */}
       <div
         className={`
           fixed inset-x-0 bottom-[52px]
@@ -53,7 +51,6 @@ export default function TradeFormBottomSheet({
         `}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ─── TradingPanel Instance ─── */}
         <div>
           <TradingPanel
             initialTab={initialTab}

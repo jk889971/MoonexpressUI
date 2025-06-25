@@ -1,15 +1,11 @@
 // app/api/trades/[addr]/route.ts
 import { Prisma } from '@prisma/client'
 
-/* ─── Lazy-load Prisma (keeps Next.js edge-friendly) ──────────────── */
 async function getDb() {
   const mod = await import('@/lib/db')
   return mod.prisma as typeof import('@/lib/db').prisma
 }
 
-/* ───────────────────────────────────────────────────────────────────
-   POST  → placeholder row (pending = true)
-─────────────────────────────────────────────────────────────────── */
 export async function POST(
   req: Request,
   { params }: { params: { addr: string } },
@@ -23,13 +19,12 @@ export async function POST(
 
   await prisma.trade.upsert({
     where:  { txHash },
-    update: {},   // if hash already exists → leave untouched
+    update: {},
     create: {
       launchAddress,
       wallet,
-      type,               // "Buy" | "Sell"
+      type,
       txHash,
-      // amounts default to 0 (schema) ⇒ pending placeholder
       pending: true,
     },
   })
@@ -37,9 +32,6 @@ export async function POST(
   return new Response(null, { status: 201 })
 }
 
-/* ───────────────────────────────────────────────────────────────────
-   PATCH → finalise trade row **and** mirror Price/MCap snapshots
-─────────────────────────────────────────────────────────────────── */
 export async function PATCH(
   req: Request,
   { params }: { params: { addr: string } },
@@ -52,22 +44,19 @@ export async function PATCH(
     bnbAmount,
     tokenAmount,
     blockTimestamp,
-    blockNumber           = 0,        // default right here
+    blockNumber           = 0,
     priceUsd,  priceTs,
     mcapUsd,   mcapTs,
   } = await req.json()
 
-  /* 0️⃣  basic guards ---------------------------------------------------- */
   if (!txHash)
     return new Response('Bad request (missing txHash)', { status: 400 })
 
-  /* 1️⃣  delete useless placeholder ------------------------------------- */
   if (+bnbAmount === 0 || +tokenAmount === 0) {
     await prisma.trade.delete({ where: { txHash } }).catch(() => {})
     return new Response(null, { status: 204 })
   }
 
-  /* 2️⃣  finalise Trade row --------------------------------------------- */
   await prisma.trade.update({
     where: { txHash },
     data : {
@@ -78,7 +67,6 @@ export async function PATCH(
     },
   })
 
-  /* 3️⃣  mirror snapshots – but only when **both** value & ts are numbers */
   const safe = (v: unknown): v is number =>
     typeof v === 'number' && Number.isFinite(v)
 
@@ -109,9 +97,6 @@ export async function PATCH(
   return new Response(null, { status: 200 })
 }
 
-/* ───────────────────────────────────────────────────────────────────
-   GET → list non-pending trades for a launch
-─────────────────────────────────────────────────────────────────── */
 export async function GET(
   _req: Request,
   { params }: { params: { addr: string } },

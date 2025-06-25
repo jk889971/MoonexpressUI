@@ -3,9 +3,8 @@ import { createPublicClient, http } from 'viem';
 import launchAbi from '@/lib/abis/CurveLaunch.json';
 import { bscTestnet } from '@/lib/chain';
 
-/* ───────────────────────── Types ─────────────────────────── */
 type Bar = {
-  time:   number;   // ms bucket
+  time:   number;  
   open:   number;
   high:   number;
   low:    number;
@@ -13,11 +12,9 @@ type Bar = {
   volume: number;
 };
 
-/* ──────────────────────── Constants ──────────────────────── */
-const MIN   = 60_000;                         // 1-minute buckets
+const MIN   = 60_000;                      
 const bucket = (ms: number) => ms - (ms % MIN);
 
-/* ─────────── Helper to fetch history from the API ────────── */
 async function fetchHistory(
   launch: string,
   kind: 'price' | 'mcap',
@@ -29,7 +26,6 @@ async function fetchHistory(
   return fetch(url).then(r => r.json());
 }
 
-/* ─────────── Factory that returns a TradingView datafeed ──── */
 function createFeed(
   launch: `0x${string}`,
   readFn: 'getCurrentPriceUsd' | 'getLiveMarketCapUsd',
@@ -40,7 +36,6 @@ function createFeed(
     pricescale: number;
   }
 ) {
-  /* RPC client only for live polling */
   const rpcUrl =
     process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
     'https://bsc-testnet-rpc.bnbchain.org';
@@ -51,9 +46,8 @@ function createFeed(
   });
 
   const isMarketcap = readFn === 'getLiveMarketCapUsd';
-  const divisor     = isMarketcap ? 1e26 : 1e8;   // chain value → human
+  const divisor     = isMarketcap ? 1e26 : 1e8;   
 
-  /* read live value from the contract */
   const readValue = async () => {
     const v = await client.readContract({
       address: launch,
@@ -63,14 +57,11 @@ function createFeed(
     return Number(v) / divisor;
   };
 
-  /* ───────────────────── Bar storage ──────────────────── */
   const bars: Bar[] = [];
 
-  /* ─────────────── History loader (DB) ─────────────────── */
   async function loadHistory() {
-    if (bars.length) return;               // already loaded
+    if (bars.length) return;              
 
-    // Grab *everything* once; you can add paging if needed
     const fromSec = 0;
     const toSec   = Math.floor(Date.now() / 1_000);
     const rows    = await fetchHistory(
@@ -81,7 +72,7 @@ function createFeed(
     );
 
     for (const { timestamp, raw_value } of rows) {
-      const t   = bucket(timestamp * 1_000);  // → ms bucket
+      const t   = bucket(timestamp * 1_000);  
       const val = raw_value;
       const last = bars[bars.length - 1];
 
@@ -101,7 +92,6 @@ function createFeed(
       }
     }
 
-    /* guarantee at least one empty bar */
     if (!bars.length) {
       bars.push({
         time: bucket(Date.now()),
@@ -110,7 +100,6 @@ function createFeed(
     }
   }
 
-  /* ───────────── Real-time polling timer ──────────────── */
   const timers: Record<string, NodeJS.Timeout> = {};
 
   function startPolling(cb: (b: Bar) => void) {
@@ -137,7 +126,6 @@ function createFeed(
     }, 1_000);
   }
 
-  /* ──────────── Public TradingView feed API ───────────── */
   return {
     onReady(cb: any) {
       setTimeout(
@@ -197,7 +185,6 @@ function createFeed(
   };
 }
 
-/* ───────────── Datafeed builders (price / mcap) ─────────── */
 export function makePriceFeed(
   launch: `0x${string}`,
   _deployBlock: bigint = 0n,

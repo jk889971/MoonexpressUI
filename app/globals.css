@@ -39,18 +39,17 @@ body {
   border-radius: 3px;
 }
 
-/* Firefox */
 .theme-textarea {
   scrollbar-width: thin;
   scrollbar-color: #19c0f4 #0e1a38;
 }
 
-.theme-input {                /* controls idle + focus look */
+.theme-input {              
   @apply w-full rounded-xl bg-[#132043] px-3 py-2
           border border-[#21325e] text-white placeholder:text-gray-400
           focus-visible:outline-none
           focus-visible:ring-2 focus-visible:ring-[#19c0f4]
-          focus-visible:ring-offset-0               /* remove 2-px gap */
+          focus-visible:ring-offset-0       
           focus-visible:border-[#19c0f4];
 }
 
@@ -117,8 +116,8 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  height: 2px;                 /* thin bar */
-  background-color: #19c0f4;     /* or whatever color you like */
+  height: 2px;                
+  background-color: #19c0f4; 
   animation: reverse-progress 10s linear forwards;
 }
 
@@ -239,14 +238,13 @@ body {
 
 .digit {
   @apply inline-block overflow-hidden relative;
-  width: 0.6ch;       /* about the width of one character */
-  height: 1em;        /* exactly one line-height */
+  width: 0.6ch;   
+  height: 1em;    
 }
 
 .digit .inner {
   @apply block;
   transition: transform 0.6s cubic-bezier(.4,0,.2,1);
-  /* the “–digit” var will be set inline via React */
   transform: translateY(calc(var(--digit) * -1em));
 }
 

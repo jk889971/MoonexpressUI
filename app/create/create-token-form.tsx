@@ -31,26 +31,24 @@ type Toast = {
 
 export default function CreateTokenForm() {
   const router = useRouter()
-   //── form state ────────────────────────────────────────────────────────────────
+
   const [tokenName, setTokenName] = useState<string>("")
   const [symbol, setSymbol] = useState<string>("")
-  const [description, setDescription] = useState<string>("") // optional
+  const [description, setDescription] = useState<string>("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [refundable, setRefundable]   = useState<boolean | null>(null)  // 1st dropdown
-  const [claimLP,    setClaimLP]      = useState<boolean | null>(null)  // 2nd dropdown
-  const [durationMin,setDurationMin]  = useState<number | null>(null)   // 3rd dropdown
-  const [twitterLink,  setTwitterLink]  = useState<string>("")  // NEW
-  const [telegramLink, setTelegramLink] = useState<string>("")  // NEW
-  const [websiteLink,  setWebsiteLink]  = useState<string>("")  // NEW
+  const [refundable, setRefundable]   = useState<boolean | null>(null)
+  const [claimLP,    setClaimLP]      = useState<boolean | null>(null)
+  const [durationMin,setDurationMin]  = useState<number | null>(null)
+  const [twitterLink,  setTwitterLink]  = useState<string>("")
+  const [telegramLink, setTelegramLink] = useState<string>("")
+  const [websiteLink,  setWebsiteLink]  = useState<string>("")
   const [imageURI, setImageURI] = useState<string>('')
   const [uploading, setUploading] = useState(false)
-  const [creatorPreBuys,setCreatorPreBuys] = useState(false)   // set after modal
-  const [preBuyAmount, setPreBuyAmount]= useState('')      // modal input
+  const [creatorPreBuys,setCreatorPreBuys] = useState(false)
+  const [preBuyAmount, setPreBuyAmount]= useState('')
 
-  // “More options” toggling
   const [isExpanded, setIsExpanded] = useState<boolean>(false)
 
-  // Modal visibility
   const [showModal, setShowModal] = useState<boolean>(false)
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false)
 
@@ -67,30 +65,22 @@ export default function CreateTokenForm() {
     []
   )
 
-  // File‐input ref
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  //── TOAST STATE ────────────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  //── DRAG‐STATE ─────────────────────────────────────────────────────────────────
-  // true while the user is dragging a file anywhere over the window
   const [isDragging, setIsDragging] = useState(false)
 
   const [selectedAmountButton, setSelectedAmountButton] = useState<string | null>(null)
 
-  // ensure we only index + post once per mint
   const didIndexRef = useRef(false)
 
-
-  // Prevent default browser "snatch" behavior and track dragging globally
   useEffect(() => {
     const onWindowDragOver = (e: DragEvent) => {
       e.preventDefault()
       setIsDragging(true)
     }
     const onWindowDragLeave = (e: DragEvent) => {
-      // If they drag out of the window entirely, cancel the dimming
       if ((e.target as Element).tagName === "HTML") {
         setIsDragging(false)
       }
@@ -111,7 +101,6 @@ export default function CreateTokenForm() {
     }
   }, [])
 
-  // Enqueue a new toast (bottom‐right). Auto‐removes after 10 seconds.
   const addToast = (message: string) => {
     const id = Date.now()
     setToasts((prev) => [...prev, { id, message }])
@@ -120,25 +109,20 @@ export default function CreateTokenForm() {
     }, 10_000)
   }
 
-  //── VALIDATION CONSTANTS ─────────────────────────────────────────────────────
-  const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
+  const MAX_FILE_SIZE = 2 * 1024 * 1024 
   const ALLOWED_EXTENSIONS = /\.(png|jpe?g|webp|gif|svg|avif)$/i
 
-  //── HELPER: validate file type, size, dimensions ─────────────────────────────
   const handleFileSelect = (file: File) => {
-    // 1) check extension / mime
     if (!ALLOWED_EXTENSIONS.test(file.name)) {
       addToast("Invalid file format. Only png, jpeg, jpg, webp, gif, svg & avif are allowed.")
       return
     }
 
-    // 2) size
     if (file.size > MAX_FILE_SIZE) {
       addToast("File too large. Maximum allowed size is 2 MB.")
       return
     }
 
-    // 3) 1:1 ratio
     const img = new window.Image()
     const objectUrl = URL.createObjectURL(file)
     img.src = objectUrl
@@ -148,7 +132,6 @@ export default function CreateTokenForm() {
       const h = img.naturalHeight
       URL.revokeObjectURL(objectUrl)
 
-      // ─── square‐ratio check ───────────────────────────────
       if (w !== h) {
         addToast(
           `Image must be square (1:1 aspect ratio). Yours is ${w}×${h}.`
@@ -156,7 +139,6 @@ export default function CreateTokenForm() {
         return
       }
 
-      // all checks passed
       setSelectedFile(file)
     }
 
@@ -176,14 +158,12 @@ export default function CreateTokenForm() {
     fileInputRef.current?.click()
   }
 
-  //── AMOUNT BUTTON HANDLERS ────────────────────────────────────────────────────
   const handleAmountButtonClick = (val: string) => {
     setPreBuyAmount(val)
     setSelectedAmountButton(val)
     setCreatorPreBuys(Boolean(val))
   }
 
-  //── “Create” CLICK: require only Token Name, Symbol, and Image ────────────────
   const onClickCreate = async () => {
     if (!tokenName.trim() || !symbol.trim()) {
       addToast("Please fill in Token Name and Symbol")
@@ -197,7 +177,6 @@ export default function CreateTokenForm() {
     setUploading(true)
 
     try {
-      // ② start async upload
       const fd = new FormData()
       fd.append("file", selectedFile)
 
@@ -205,17 +184,15 @@ export default function CreateTokenForm() {
       if (!res.ok) throw new Error("upload failed")
       const { cid } = await res.json()
 
-      // ③ CID ready → triggers wagmi simulate
       setImageURI(`ipfs://${cid}`)
       setShowModal(true)
     } catch (e) {
       addToast("Image upload failed")
     } finally {
-      setUploading(false)          // let the UI know upload finished
+      setUploading(false)
     }
   }
 
-  //── “Continue” CLICK: close buy‐modal, open success modal ─────────────────────
   const handleContinue = () => {
     setShowModal(false)
     if (!sim?.request) {
@@ -226,14 +203,10 @@ export default function CreateTokenForm() {
   }
 
 
-  /**************************************************************************
- *  Δ  PREPARE write()
- **************************************************************************/
   const durationSec = durationMin ? BigInt(durationMin * 60) : undefined
 
-  /***** 1. simulate (like “prepare”) **************************************/
   const {
-    data: sim,          // sim.request contains calldata + value
+    data: sim,
     error: simError,
   } = useSimulateContract({
     address: FACTORY_ADDRESS,
@@ -242,7 +215,7 @@ export default function CreateTokenForm() {
     args: [
       tokenName,
       symbol,
-      imageURI,                 // no fallback now
+      imageURI,
       refundable ?? false,
       claimLP    ?? false,
       creatorPreBuys,
@@ -250,7 +223,6 @@ export default function CreateTokenForm() {
     ],
     value: creatorPreBuys ? parseEther(preBuyAmount || "0") : undefined,
     chainId: bscTestnet.id,
-    // wagmi v2 uses react-query options:
     query: {
       enabled:
         !!tokenName && !!symbol && !!selectedFile && !!imageURI &&
@@ -261,17 +233,15 @@ export default function CreateTokenForm() {
   const predictedToken = (sim?.result?.[0] as `0x${string}` | undefined)
   const predictedLaunch = sim?.result?.[1] as `0x${string}` | undefined
 
-  /***** 2. write ***********************************************************/
   const {
-    writeContract,           // function to call
-    data: hash,              // hash after write
+    writeContract,
+    data: hash,   
     isPending: isWriting,
     error: writeError,
   } = useWriteContract()
 
-  /***** 3. wait for receipt ***********************************************/
   const {
-    data: receipt,           // transaction receipt
+    data: receipt,         
     isSuccess,
     error: waitError,
   } = useWaitForTransactionReceipt({
@@ -279,14 +249,13 @@ export default function CreateTokenForm() {
     chainId: bscTestnet.id,
   })
 
-  const { address } = useAccount()           // current wallet
+  const { address } = useAccount()    
   const { data: bal } = useBalance({
     address,
     chainId: bscTestnet.id,
-    watch: true,                             // live refresh on wallet changes
+    watch: true,                   
   })
 
-  /* read maxBuy (wei) from factory — re-runs if chain changes */
   const { data: maxBuyWei } = useReadContract({
     address: FACTORY_ADDRESS,
     abi: factoryAbi,
@@ -294,10 +263,10 @@ export default function CreateTokenForm() {
     chainId: bscTestnet.id,
   })
 
-  const GAS_BUFFER = parseEther("0.0025")   // leave ~0.0025 BNB for gas (tweak)
+  const GAS_BUFFER = parseEther("0.0025") 
 
   const handleMaxClick = () => {
-  if (!bal?.value || !maxBuyWei) return            // wait for both to load
+  if (!bal?.value || !maxBuyWei) return       
 
   const safeGas  = bal.value > GAS_BUFFER ? bal.value - GAS_BUFFER : 0n
   const capped   = safeGas > maxBuyWei ? maxBuyWei : safeGas
@@ -308,7 +277,6 @@ export default function CreateTokenForm() {
   setCreatorPreBuys(Boolean(capped))
 }
 
-  /* toast all wagmi errors */
   useEffect(() => {
     if (simError)  addToast(`Simulate error: ${simError.message}`)
   }, [simError])
@@ -333,7 +301,6 @@ export default function CreateTokenForm() {
       didIndexRef.current
     ) return
 
-    // mark so we never do this twice
     didIndexRef.current = true
 
     ;(async () => {
@@ -341,7 +308,6 @@ export default function CreateTokenForm() {
       const tokenAddr   = predictedToken.toLowerCase()
       const deployBlock = receipt.blockNumber.toString()
 
-      // 1) Persist the launch info
       try {
         await fetch("/api/launch", {
           method:  "POST",
@@ -358,22 +324,19 @@ export default function CreateTokenForm() {
         })
       } catch (err) {
         console.error("Launch insert failed:", err)
-        return  // stop here if launch record fails
+        return
       }
 
-      // 2) If the creator pre‐bought, grab the very first TokensBought event
       if (creatorPreBuys && Number(preBuyAmount) > 0) {
         try {
-          /* ── small helpers ───────────────────────────── */
           const get = (topic0: `0x${string}`) =>
           customrpc.getLogs({
             address:   launchAddr,
             fromBlock: receipt.blockNumber,
             toBlock:   receipt.blockNumber,
-            topics:    [topic0],        // ← one-topic filter
+            topics:    [topic0],      
           });
 
-          /* ── 1) TokensBought ─────────────────────────── */
           const boughtLogs = await get(tokensBoughtTopic);
           if (!boughtLogs.length) throw new Error('TokensBought not found');
 
@@ -388,7 +351,6 @@ export default function CreateTokenForm() {
           const tokenWei    = boughtDec.args.tokenAmount   as bigint;
           const txHash      = boughtLogs[0].transactionHash;
 
-          /* ── 2) PriceUpdate  (optional) ─────────────── */
           let priceUsdBig = 0n, priceTs = 0n;
           const priceLogs = await get(priceUpdateTopic);
           if (priceLogs.length) {
@@ -399,7 +361,6 @@ export default function CreateTokenForm() {
             priceTs     = dec.args.timestamp as bigint;
           }
 
-          /* ── 3) MarketCapUpdate  (optional) ─────────── */
           let mcapUsdBig = 0n, mcapTs = 0n;
           const mcapLogs = await get(mcapUpdateTopic);
           if (mcapLogs.length) {
@@ -410,18 +371,15 @@ export default function CreateTokenForm() {
             mcapTs     = dec.args.timestamp    as bigint;
           }
 
-          /* ── 4) placeholder Trade row ───────────────── */
           await fetch(`/api/trades/${launchAddr}`, {
             method : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body   : JSON.stringify({ wallet: buyer, type: 'Buy', txHash }),
           });
 
-          /* ── 5) block-time for proper ordering ──────── */
           const blk = await customrpc.getBlock({ blockHash: boughtLogs[0].blockHash });
-          const ts  = Number(blk.timestamp);          // seconds
+          const ts  = Number(blk.timestamp);  
 
-          /* ── 6) finalise row + snapshots ───────────── */
           await fetch(`/api/trades/${launchAddr}`, {
             method : 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -445,7 +403,6 @@ export default function CreateTokenForm() {
       setNewTokenAddr(tokenAddr)
       setDeployBlock(deployBlock)
 
-      // 4) Finally show the success modal
       setShowSuccessModal(true)
     })()
   }, [
@@ -469,21 +426,18 @@ export default function CreateTokenForm() {
 
   return (
     <div className="min-h-screen bg-[#0b152f] flex flex-col">
-      {/* ─── GLOBAL DRAG OVERLAY ──────────────────────────────────────────── */}
       {isDragging && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 pointer-events-none"
         />
       )}
 
-      {/* ─── Main Form Card ────────────────────────────────────────────────────── */}
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-[90vw] sm:w-full sm:max-w-md bg-[#0e1a38] border-0 text-white shadow-xl rounded-2xl">
           <CardContent className="p-8">
             <h1 className="text-2xl font-bold text-center mb-8">Create Token</h1>
 
             <div className="space-y-6">
-              {/* ─── Token Name ───────────────────────────────────────────── */}
               <div>
                 <Input
                   placeholder="Token Name"
@@ -494,7 +448,6 @@ export default function CreateTokenForm() {
                 />
               </div>
 
-              {/* ─── Symbol ───────────────────────────────────────────────── */}
               <div>
                 <Input
                   placeholder="Symbol"
@@ -507,7 +460,6 @@ export default function CreateTokenForm() {
                 />
               </div>
 
-              {/* ─── Description (optional) ───────────────────────────────── */}
               <div className="rounded-xl overflow-hidden border border-[#21325e] focus-within:border-[#19c0f4] focus-within:ring-2 focus-within:ring-[#19c0f4] focus-within:ring-offset-0">
                 <Textarea
                   placeholder="Description (optional)"
@@ -518,7 +470,6 @@ export default function CreateTokenForm() {
                 />
               </div>
 
-              {/* ─── Image Upload Dropzone ───────────────────────────────── */}
               <div className="bg-[#21325e] rounded-xl p-4 relative z-50">
                 <div
                   className="flex items-center gap-2 max-[335px]:flex-col max-[335px]:items-center"
@@ -528,8 +479,6 @@ export default function CreateTokenForm() {
                   }}
                   onDragLeave={(e) => {
                     e.stopPropagation()
-                    // if leaving dropzone but still over window, keep isDragging=true
-                    // only clear if the mouse fully leaves this element
                     const rect = (e.target as HTMLElement).getBoundingClientRect()
                     if (
                       e.clientX < rect.left ||
@@ -585,7 +534,6 @@ export default function CreateTokenForm() {
                   className="hidden"
                 />
 
-                {/* ─── Upload Requirements ──────────────────────────────────────── */}
                 <p className="mt-2 text-xs text-gray-400">
                   • Formats: .png, .jp(e)g .webp, .gif, .svg, .avif<br/>
                   • Max size: 2 MB<br/>
@@ -593,9 +541,7 @@ export default function CreateTokenForm() {
                 </p>
               </div>
 
-              {/* ─── Dropdowns: Type, Receive, Duration ────────────────────────────── */}
               <div className="flex flex-col gap-4 mt-4">
-                {/* ─── Type ────────────────────────────────────────────────────────── */}
                 <Select onValueChange={(val)=>setRefundable(val==='refundable')}>
                   <SelectTrigger
                     className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
@@ -612,7 +558,6 @@ export default function CreateTokenForm() {
                   </SelectContent>
                 </Select>
 
-                {/* ─── Receive ─────────────────────────────────────────────────────── */}
                 <Select onValueChange={(val)=>setClaimLP(val==='lps')}>
                   <SelectTrigger
                     className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
@@ -629,7 +574,6 @@ export default function CreateTokenForm() {
                   </SelectContent>
                 </Select>
 
-                {/* ─── Duration ────────────────────────────────────────────────────── */}
                 <Select onValueChange={(val)=>setDurationMin(Number(val))}>
                   <SelectTrigger
                     className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
@@ -646,37 +590,35 @@ export default function CreateTokenForm() {
                 </Select>
               </div>
 
-              {/* ─── Expandable Social Links ──────────────────────────────── */}
               {isExpanded && (
                 <>
                   <div>
                     <Input
                       placeholder="Twitter Link (optional)"
-                      value={twitterLink}                          // NEW
-                      onChange={(e) => setTwitterLink(e.target.value)} // NEW
+                      value={twitterLink}            
+                      onChange={(e) => setTwitterLink(e.target.value)} 
                       className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
                     />
                   </div>
                   <div>
                     <Input
                       placeholder="Telegram Link (optional)"
-                      value={telegramLink}                         // NEW
-                      onChange={(e) => setTelegramLink(e.target.value)} // NEW
+                      value={telegramLink}                      
+                      onChange={(e) => setTelegramLink(e.target.value)} 
                       className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
                     />
                   </div>
                   <div>
                     <Input
                       placeholder="Website URL (optional)"
-                      value={websiteLink}                          // NEW
-                      onChange={(e) => setWebsiteLink(e.target.value)} // NEW
+                      value={websiteLink}                     
+                      onChange={(e) => setWebsiteLink(e.target.value)}
                       className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
                     />
                   </div>
                 </>
               )}
 
-              {/* ─── Show More / Show Less Toggle ─────────────────────────── */}
               <div className="flex items-center justify-center">
                 <Button
                   variant="ghost"
@@ -690,7 +632,6 @@ export default function CreateTokenForm() {
                 </Button>
               </div>
 
-              {/* ─── Cancel + Create Buttons ───────────────────────────────── */}
               <div className="flex gap-4 pt-4 max-[335px]:flex-col">
                 <Button
                   variant="outline"
@@ -702,7 +643,6 @@ export default function CreateTokenForm() {
                   Cancel
                 </Button>
 
-                {/* Create Button with “Connect Wallet”–style hover */}
                 <Button
                   className="
                     flex-1
@@ -746,7 +686,6 @@ export default function CreateTokenForm() {
                 </Button>
               </div>
 
-              {/* ─── Warning Note ───────────────────────────────────────────── */}
               <div className="flex items-center justify-center gap-2 text-sm max-[400px]:flex-col max-[400px]:gap-1 max-[400px]:text-center">
                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
                 <p className="text-gray-400">Coin data cannot be changed after creation.</p>
@@ -756,9 +695,6 @@ export default function CreateTokenForm() {
         </Card>
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────────────
-            “Buy Tokens” Modal
-      ───────────────────────────────────────────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-[#0e1a38] rounded-2xl p-4 sm:p-6 w-[90vw] sm:w-full sm:max-w-sm mx-4 border border-[#21325e]">
@@ -787,7 +723,7 @@ export default function CreateTokenForm() {
                         if (v.startsWith('-')) return
                         setPreBuyAmount(v)
                         setSelectedAmountButton(null)
-                        setCreatorPreBuys(Boolean(v))   // ← keeps state & hook in sync
+                        setCreatorPreBuys(Boolean(v)) 
                       }}
                       className="
                         bg-transparent border-0 text-white text-xl font-bold outline-none
@@ -822,7 +758,6 @@ export default function CreateTokenForm() {
                   </div>
 
                   <div className="space-y-3 pt-4">
-                    {/* Continue Button with “Connect Wallet”–style hover */}
                     <Button
                       onClick={handleContinue}
                       disabled={uploading || !sim?.request || isWriting}
@@ -884,9 +819,6 @@ export default function CreateTokenForm() {
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────────────
-            Success Modal (“Token Created Successfully!”)
-      ───────────────────────────────────────────────────────────────────── */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
           <div
@@ -898,12 +830,10 @@ export default function CreateTokenForm() {
             "
           >
             <div className="text-center space-y-3 sm:space-y-4 sm:flex-1 sm:flex sm:flex-col sm:justify-center">
-              {/* Heading */}
               <h2 className="text-lg sm:text-2xl font-bold text-white">
                 Token Created Successfully!
               </h2>
 
-              {/* Moon and Rocket Illustration */}
               <div className="flex justify-center">
                 <NextImage
                   src="/moon-rocket.svg"
@@ -921,13 +851,11 @@ export default function CreateTokenForm() {
                 />
               </div>
 
-              {/* Description */}
               <p className="text-gray-400 text-xs sm:text-sm">
                 Your token has been created and is now live on the blockchain.
               </p>
             </div>
 
-            {/* Action Button (“View Token”) with the same hover animation */}
             <div className="w-full mt-4 sm:mt-6">
               <Button
                 onClick={() => {
@@ -955,7 +883,6 @@ export default function CreateTokenForm() {
         </div>
       )}
 
-      {/* ─── Toast Container (bottom‐right) ─────────────────────────────────────── */}
       <div className="fixed bottom-4 right-4 flex flex-col space-y-2 z-[99999] max-[640px]:left-1/2 max-[640px]:transform max-[640px]:-translate-x-1/2 max-[640px]:right-auto">
         {toasts.map((toast) => (
           <div
@@ -968,7 +895,7 @@ export default function CreateTokenForm() {
               max-[500px]:text-sm
               max-[400px]:text-xs
             "
-            title={toast.message}          // hover to see full text
+            title={toast.message}        
           >
             <div className="toast-progress"></div>
             {toast.message.length > 150
