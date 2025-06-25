@@ -65,8 +65,22 @@ export default function ClaimCard({
     lpFailed
   ] = (view || []) as [boolean, boolean, bigint, bigint, bigint, boolean] || [];
 
-  const [bnbPaid = 0n, netSpend = 0n, tokensAllocated = 0n, claimed = false] =
-    (rawBuyer || []) as unknown as [bigint, bigint, bigint, boolean] || [];
+  const [buyerSnapshot, setBuyerSnapshot] = useState<{
+    bnbPaid: bigint;
+    netSpend: bigint;
+    tokensAllocated: bigint;
+    claimed: boolean;
+  }>({ bnbPaid: 0n, netSpend: 0n, tokensAllocated: 0n, claimed: false });
+
+  useEffect(() => {
+    if (rawBuyer) {
+      const [paid, spend, tokens, didClaim] =
+        rawBuyer as unknown as [bigint, bigint, bigint, boolean];
+      setBuyerSnapshot({ bnbPaid: paid, netSpend: spend, tokensAllocated: tokens, claimed: didClaim });
+    }
+  }, [rawBuyer]);
+
+  const { bnbPaid, netSpend, tokensAllocated, claimed } = buyerSnapshot;
 
   const refetchAll = () => {
     refetchView();
