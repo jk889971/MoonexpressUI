@@ -73,11 +73,16 @@ export default function ClaimCard({
   }>({ bnbPaid: 0n, netSpend: 0n, tokensAllocated: 0n, claimed: false });
 
   useEffect(() => {
-    if (rawBuyer) {
-      const [paid, spend, tokens, didClaim] =
-        rawBuyer as unknown as [bigint, bigint, bigint, boolean];
-      setBuyerSnapshot({ bnbPaid: paid, netSpend: spend, tokensAllocated: tokens, claimed: didClaim });
-    }
+    if (!rawBuyer) return;
+
+    const [paid, spend, tokens, didClaim] =
+      rawBuyer as unknown as [bigint, bigint, bigint, boolean];
+
+    setBuyerSnapshot(prev => {
+      if (prev.claimed) return prev;
+
+      return { bnbPaid: paid, netSpend: spend, tokensAllocated: tokens, claimed: didClaim };
+    });
   }, [rawBuyer]);
 
   const { bnbPaid, netSpend, tokensAllocated, claimed } = buyerSnapshot;
@@ -241,6 +246,8 @@ export default function ClaimCard({
         hash,
         confirmations: 1,
       });
+
+      setBuyerSnapshot(prev => ({ ...prev, claimed: true }));
 
       refetchAll();
     } catch (err: any) {
