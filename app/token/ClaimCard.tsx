@@ -65,8 +65,8 @@ export default function ClaimCard({
     lpFailed
   ] = (view || []) as [boolean, boolean, bigint, bigint, bigint, boolean] || [];
 
-  const [bnbPaid = 0n, tokensAllocated = 0n, claimed = false] =
-    (rawBuyer || []) as unknown as [bigint, bigint, boolean] || [];
+  const [bnbPaid = 0n, netSpend = 0n, tokensAllocated = 0n, claimed = false] =
+    (rawBuyer || []) as unknown as [bigint, bigint, bigint, boolean] || [];
 
   const refetchAll = () => {
     refetchView();
@@ -199,8 +199,9 @@ export default function ClaimCard({
     }
   }
 
-  const nothingToClaim = claimed || 
-    (fnName === "claim" && tokensAllocated === 0n) ||
+  const nothingToClaim = claimed ||
+    (fnName === "claim" &&
+      tokensAllocated === 0n && netSpend === 0n) ||
     (fnName?.startsWith("claimRefund") && bnbPaid === 0n);
 
   const disabled = claiming || !fnName || nothingToClaim;
