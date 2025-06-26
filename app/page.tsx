@@ -383,6 +383,7 @@ export default function Component() {
                   Create Coin
                 </Button>
 
+                <a href="https://moonexpress-fun.gitbook.io/moonexpress.fun" target="_blank" rel="noopener noreferrer">
                 <Button
                   variant="outline"
                   className="
@@ -398,6 +399,7 @@ export default function Component() {
                 >
                   How it works?
                 </Button>
+                </a>
               </div>
             </div>
           </div>

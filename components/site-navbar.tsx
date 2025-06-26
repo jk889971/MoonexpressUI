@@ -55,7 +55,7 @@ export default function SiteNavbar() {
           >
             Create Token
           </a>
-          <a href="#" className="text-white hover:text-[#19c0f4]">
+          <a href="https://moonexpress-fun.gitbook.io/moonexpress.fun" target="_blank" rel="noopener noreferrer" className="text-white hover:text-[#19c0f4]">
             Docs
           </a>
         </nav>
@@ -67,9 +67,20 @@ export default function SiteNavbar() {
           "
         >
           <div className="flex space-x-0 max-[500px]:hidden">
+            <a
+              href="https://t.me/moonexpressfun"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
             <Button variant="ghost" size="icon" className="text-[#19c0f4]">
               <Send className="w-6 h-6" />
             </Button>
+            </a>
+            <a
+              href="https://x.com/MoonexpressFun"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
             <Button
               variant="ghost"
               size="icon"
@@ -79,6 +90,7 @@ export default function SiteNavbar() {
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
             </Button>
+            </a>
           </div>
               <ConnectWalletButton />
         </div>
@@ -151,7 +163,9 @@ export default function SiteNavbar() {
         </a>
 
         <a
-          href="#"
+          href="https://moonexpress-fun.gitbook.io/moonexpress.fun"
+          target="_blank"
+          rel="noopener noreferrer"
           className="
             flex flex-col items-center justify-center p-2
             transition-colors duration-200
