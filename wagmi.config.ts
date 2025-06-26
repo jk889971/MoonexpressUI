@@ -1,18 +1,19 @@
 // wagmi.config.ts
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { bscTestnet }       from 'wagmi/chains';
-import { http }             from 'wagmi';
+import { getDefaultConfig } from "@rainbow-me/rainbowkit"
+import { http } from "wagmi"
+import { CHAIN } from "@/lib/chains/current"
+
+const rpcUrl =
+  (CHAIN.envRpc ? process.env[CHAIN.envRpc] : undefined) ?? CHAIN.rpcUrls[0]
 
 export const wagmiConfig = getDefaultConfig({
-  appName:   'Moonexpress',
+  appName: "Moonexpress",
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
-  chains:    [bscTestnet],
-  ssr:       true,
+  chains: [CHAIN.chain],
+  ssr: true,
   transports: {
-    [bscTestnet.id]: http(
-      'https://data-seed-prebsc-1-s1.binance.org:8545'
-    ),
-  },
-});
+    [CHAIN.chain.id]: http(rpcUrl)
+  }
+})
 
-export const chains = wagmiConfig.chains;
+export const chains = wagmiConfig.chains
