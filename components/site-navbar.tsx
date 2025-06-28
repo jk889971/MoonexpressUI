@@ -6,9 +6,15 @@ import ConnectWalletButton from '@/components/ConnectWalletButton';
 import { Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { CHAINS, ChainKey } from "@/lib/chains/catalog";
+import { useChain } from '@/hooks/useChain';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SiteNavbar() {
   const pathname = usePathname();
+
+  const [chainCfg, setChain] = useChain();
+  const chainOptions = Object.keys(CHAINS) as ChainKey[];
 
   return (
     <>
@@ -64,9 +70,27 @@ export default function SiteNavbar() {
         <div
           className="
             flex items-center gap-4 
-            max-[250px]:mt-2           /* small gap above at ≤250px */
+            max-[250px]:mt-2
           "
         >
+          <div className="hidden min-[900px]:block">
+            <Select value={chainCfg.key} onValueChange={(v) => setChain(v as ChainKey)}>
+              <SelectTrigger className="w-[140px] bg-[#21325e]/50 border-[#21325e] text-white">
+                <SelectValue>{chainCfg.label}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white max-h-64 overflow-y-auto">
+                {chainOptions.map((k) => (
+                  <SelectItem
+                    key={k}
+                    value={k}
+                    className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                  >
+                    {CHAINS[k].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex space-x-0 max-[500px]:hidden">
             <a
               href="https://t.me/moonexpressfun"

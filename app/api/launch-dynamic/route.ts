@@ -1,73 +1,93 @@
-//app/api/launch-dynamic/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import launchAbi from '@/lib/abis/CurveLaunch.json'
-import { createPublicClient, http } from 'viem'
-import { bscTestnet } from '@/lib/chain'
-import { PrismaClient } from '@prisma/client'
+// app/api/launch-dynamic/route.ts
+import { NextRequest, NextResponse } from "next/server"
+import launchAbi from "@/lib/abis/CurveLaunch.json"
+import { createPublicClient, http } from "viem"
+import { CHAINS, ChainKey } from "@/lib/chains/catalog"
+import { prisma } from "@/lib/db"
 
-const prisma = new PrismaClient()
+function pickChainKey(req: NextRequest): ChainKey {
+  const url = new URL(req.url)
+  const k = url.searchParams.get("chain") as ChainKey | null
+  if (!k || !(k in CHAINS)) throw new Error("missing or invalid chain")
+  return k
+}
 
 export async function POST(req: NextRequest) {
+  if (req.headers.get("content-length") === "0") {
+    return NextResponse.json([], { status: 200 })
+  }
+
+  const chainKey = pickChainKey(req)
+  const CHAIN = CHAINS[chainKey]
+
   try {
-    const { launchAddresses } = await req.json();
-    
-    if (!launchAddresses || !Array.isArray(launchAddresses) || launchAddresses.length === 0) {
-      return NextResponse.json([], { status: 200 });
+    const { launchAddresses } = await req.json()
+    if (!Array.isArray(launchAddresses) || launchAddresses.length === 0) {
+      return NextResponse.json([], { status: 200 })
     }
-    
+
     const publicClient = createPublicClient({
-      chain: bscTestnet,
-      transport: http()
+      chain: CHAIN.chain,
+      transport: http(CHAIN.rpcUrls[0]),
     })
-    
-    const results = []
-    
-    for (const launchAddress of launchAddresses) {
+
+    const results: Array<{
+      launchAddress: string
+      isRefundable: boolean
+      claimLP: boolean
+      endTime: number
+      finalized: boolean
+      lpFailed: boolean
+      drainMode: boolean
+      creatorPreBuys: boolean
+      marketCapUSD: number
+      progress: number
+      repliesCount: number
+    }> = []
+
+    for (const rawAddr of launchAddresses) {
+      const launchAddress = (rawAddr as string).toLowerCase()
       try {
-        const [
-          claimView, 
-          finalized, 
-          drainMode,
-          creatorPreBuys
-        ] = await Promise.all([
-          publicClient.readContract({
-            address: launchAddress as `0x${string}`,
-            abi: launchAbi,
-            functionName: 'getClaimView',
-          }),
-          publicClient.readContract({
-            address: launchAddress as `0x${string}`,
-            abi: launchAbi,
-            functionName: 'finalized',
-          }),
-          publicClient.readContract({
-            address: launchAddress as `0x${string}`,
-            abi: launchAbi,
-            functionName: 'drainMode',
-          }),
-          publicClient.readContract({
-            address: launchAddress as `0x${string}`,
-            abi: launchAbi,
-            functionName: 'creatorBuys',
-          })
-        ])
-        
-        const [isRefundable, claimLP, endTime, raised, cap, lpFailed] = claimView as any
-        
+        const [claimView, finalized, drainMode, creatorPreBuys] =
+          await Promise.all([
+            publicClient.readContract({
+              address: launchAddress as `0x${string}`,
+              abi: launchAbi,
+              functionName: "getClaimView",
+            }),
+            publicClient.readContract({
+              address: launchAddress as `0x${string}`,
+              abi: launchAbi,
+              functionName: "finalized",
+            }),
+            publicClient.readContract({
+              address: launchAddress as `0x${string}`,
+              abi: launchAbi,
+              functionName: "drainMode",
+            }),
+            publicClient.readContract({
+              address: launchAddress as `0x${string}`,
+              abi: launchAbi,
+              functionName: "creatorBuys",
+            }),
+          ])
+
+        const [isRefundable, claimLP, endTime, raised, cap, lpFailed] =
+          claimView as any
         const progress = cap > 0 ? (Number(raised) / Number(cap)) * 100 : 0
-        
-        const marketCapUSD = await publicClient.readContract({
+
+        const rawMcap = await publicClient.readContract({
           address: launchAddress as `0x${string}`,
           abi: launchAbi,
-          functionName: 'getLiveMarketCapUsd',
+          functionName: "getLiveMarketCapUsd",
         })
-        
-        const commentCount = await prisma.comment.count({
-          where: { launchAddress: launchAddress.toLowerCase() }
-        });
-        
+
+        const repliesCount = await prisma.comment.count({
+          where: { chainKey, launchAddress },
+        })
+
         results.push({
-          launchAddress,
+          launchAddress: rawAddr,
           isRefundable,
           claimLP,
           endTime: Number(endTime),
@@ -75,14 +95,13 @@ export async function POST(req: NextRequest) {
           lpFailed,
           drainMode,
           creatorPreBuys,
-          marketCapUSD: Number(marketCapUSD) / 1e26,
+          marketCapUSD: Number(rawMcap) / CHAIN.divisors.marketCapUsd,
           progress,
-          repliesCount: commentCount,
+          repliesCount,
         })
-      } catch (e) {
-        console.error(`Error processing ${launchAddress}:`, e)
+      } catch {
         results.push({
-          launchAddress,
+          launchAddress: rawAddr,
           isRefundable: false,
           claimLP: false,
           endTime: 0,
@@ -96,12 +115,12 @@ export async function POST(req: NextRequest) {
         })
       }
     }
-    
+
     return NextResponse.json(results)
-  } catch (error) {
-    console.error('Error fetching dynamic data:', error)
-    return NextResponse.json({ error: 'Failed to fetch dynamic data' }, { status: 500 })
-  } finally {
-    await prisma.$disconnect();
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to fetch dynamic data" },
+      { status: 500 },
+    )
   }
 }

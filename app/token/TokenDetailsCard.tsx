@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Send, Globe } from "lucide-react"
 import launchAbi from "@/lib/abis/CurveLaunch.json"
 import tokenAbi  from "@/lib/abis/CurveToken.json"
-import { bscTestnet } from "@/lib/chain"
+import { useChain } from '@/hooks/useChain'
+import { explorerAddrUrl } from "@/lib/chains/catalog"
 import { safeBigInt } from "@/lib/utils";
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher";
@@ -27,11 +28,16 @@ export default function TokenDetailsCard({
   tokenAddress: `0x${string}`
   launchAddress: `0x${string}`
 }) {
+  const [CHAIN] = useChain()
+
+  const THRESHOLD_USD = CHAIN.key === "bsc-testnet" ? 20_000 : 2_500
+  const DEX_NAME      = CHAIN.key === "bsc-testnet" ? "ToonSwap" : "Uniswap"
+
   const { data: cap } = useReadContract({
     address: launchAddress,
     abi: launchAbi,
     functionName: "curveCap",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { 
     refetchInterval: 1000,
   },
@@ -41,7 +47,7 @@ export default function TokenDetailsCard({
     address: launchAddress,
     abi: launchAbi,
     functionName: "totalRaised",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { 
       refetchInterval: 1000,
     },
@@ -51,14 +57,14 @@ export default function TokenDetailsCard({
     address: tokenAddress,
     abi: tokenAbi,
     functionName: "name",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
   })
   
   const { data: symbol } = useReadContract({
     address: tokenAddress,
     abi: tokenAbi,
     functionName: "symbol",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
   })
 
   const capBI = safeBigInt(cap);
@@ -68,7 +74,7 @@ export default function TokenDetailsCard({
     address: launchAddress,
     abi: launchAbi,
     functionName: "finalized",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(launchAddress) },
   })
 
@@ -76,7 +82,7 @@ export default function TokenDetailsCard({
     address: launchAddress,
     abi: launchAbi,
     functionName: "drainMode",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(launchAddress) },
   })
 
@@ -89,11 +95,11 @@ export default function TokenDetailsCard({
     address: launchAddress,
     abi: launchAbi,
     functionName: "imageURI",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
   })
 
   const { data: meta } = useSWR(
-    () => launchAddress && `/api/launch/${launchAddress}`,
+    () => launchAddress && `/api/launch/${launchAddress}?chain=${CHAIN.key}`,
     fetcher
   )
 
@@ -128,7 +134,7 @@ export default function TokenDetailsCard({
               {name ?? "…"} ({symbol ?? "…"})
             </div>
             <a
-              href={`https://testnet.bscscan.com/token/${tokenAddress}`}
+              href={explorerAddrUrl(CHAIN, tokenAddress)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-[#19c0f4] hover:opacity-80"
@@ -257,8 +263,7 @@ export default function TokenDetailsCard({
               max-[480px]:text-xs
             "
           >
-            When the market cap reaches 20,000 USD, 65% of the liquidity from the bonding curve will be deposited into
-            ToonSwap.
+            When the bonding curve reaches {THRESHOLD_USD.toLocaleString()} USD, 65% of the liquidity from the bonding curve will be deposited into {DEX_NAME}.
           </p>
           <p
             className="
@@ -269,7 +274,7 @@ export default function TokenDetailsCard({
               max-[480px]:text-xs
             "
           >
-            All the leftover tokens and non claim-able LPs will be burned.
+            All the leftover tokens and non-claimable LPs will be burned.
           </p>
           <p className="text-[#c8cdd1] text-s leading-relaxed text-center max-[480px]:text-xs">
             {remainingBNB == null
@@ -277,7 +282,7 @@ export default function TokenDetailsCard({
             : `${remainingBNB.toLocaleString(undefined, {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 4,
-              })} BNB worth of tokens still available.`}
+              })} ${CHAIN.nativeSymbol} worth of tokens still available.`}
           </p>
         </div>
       </CardContent>

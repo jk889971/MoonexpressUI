@@ -13,7 +13,7 @@ import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json"
 import { useReadContract, useBlockNumber } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
-import { bscTestnet } from "@/lib/chain"
+import { useChain } from '@/hooks/useChain'
 import { safeBigInt } from "@/lib/utils";
 import dynamic from 'next/dynamic';
 import { fetcher } from "@/lib/fetcher";
@@ -42,16 +42,16 @@ export default function MoonexpressTradingInterface({
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [bottomSheetTab, setBottomSheetTab] = useState<"buy" | "sell">("buy");
   const [mobileTab, setMobileTab] = useState<"details" | "discussion" | "trades">("details");
-
+  const [CHAIN] = useChain()
   const { data: meta } = useSWR(
-    () => launchAddress && `/api/launch/${launchAddress}`,
+    () => launchAddress && `/api/launch/${launchAddress}?chain=${CHAIN.key}`,
     fetcher
   );
 
   const description = meta?.description ?? "";
 
   const qc = useQueryClient()
-  const { data: block } = useBlockNumber({ chainId: bscTestnet.id, watch: true })
+  const { data: block } = useBlockNumber({ chainId: CHAIN.chain.id, watch: true })
 
   useEffect(() => {
     if (!block) return;
@@ -75,7 +75,7 @@ export default function MoonexpressTradingInterface({
     address: launchAddress,
     abi: launchAbi,
     functionName: "totalRaised",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { refetchInterval: 1000 },
   });
 
@@ -83,7 +83,7 @@ export default function MoonexpressTradingInterface({
     address: launchAddress,
     abi: launchAbi,
     functionName: "curveCap",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { refetchInterval: 1000 },
   });
 
@@ -91,7 +91,7 @@ export default function MoonexpressTradingInterface({
     address: launchAddress,
     abi: launchAbi,
     functionName: "isRefundable",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(launchAddress), refetchInterval: 1000 },
   });
 
@@ -99,7 +99,7 @@ export default function MoonexpressTradingInterface({
     address: launchAddress,
     abi: launchAbi,
     functionName: "getClaimView",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { refetchInterval: 1000 },
   });
 
@@ -107,7 +107,7 @@ export default function MoonexpressTradingInterface({
     address: launchAddress,
     abi: launchAbi,
     functionName: "finalized",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { refetchInterval: 1000 },
   })
 
@@ -115,7 +115,7 @@ export default function MoonexpressTradingInterface({
     address: launchAddress,
     abi: launchAbi,
     functionName: "drainMode",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { refetchInterval: 1000 },
   })
 
@@ -123,7 +123,7 @@ export default function MoonexpressTradingInterface({
     address: tokenAddress,
     abi: tokenAbi,
     functionName: "name",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
   });
 
   const endTime = times ? Number(times[2]) : 0;  

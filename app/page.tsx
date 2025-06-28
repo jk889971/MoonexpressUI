@@ -16,6 +16,7 @@ import {
 import { Search, Globe } from "lucide-react"
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher"
+import { useChain } from '@/hooks/useChain'
 
 function CountdownTimer({ endTime }: { endTime: number }) {
   const [timeLeft, setTimeLeft] = useState(0)
@@ -94,8 +95,8 @@ export default function Component() {
   const [showNonRefundable, setShowNonRefundable] = useState(true)
   const [showLPs, setShowLPs] = useState(true)
   const starfieldRef = useRef<HTMLCanvasElement | null>(null);
-  
-  const { data: staticLaunches, isLoading: staticLoading } = useSWR('/api/launches', fetcher);
+  const [CHAIN] = useChain()
+  const { data: staticLaunches, isLoading: staticLoading } = useSWR(`/api/launches?chain=${CHAIN.key}`, fetcher)
   const staticLaunchesArray = Array.isArray(staticLaunches) ? staticLaunches : [];
   const launchAddresses = staticLaunchesArray.map((l: any) => l.launchAddress);
 
@@ -104,7 +105,7 @@ export default function Component() {
     isLoading: dynamicLoading,
     error: dynamicError 
   } = useSWR(
-    launchAddresses.length > 0 ? ['/api/launch-dynamic', launchAddresses] : null,
+    launchAddresses.length > 0 ? [`/api/launch-dynamic?chain=${CHAIN.key}`, launchAddresses] : null,
     ([url, addresses]) => fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,7 +125,7 @@ export default function Component() {
 
   const launches = staticLaunchesArray.map((staticLaunch: any) => {
     const dynamic = dynamicData.find(
-      (d: any) => d.launchAddress === staticLaunch.launchAddress
+      (d: any) => d.launchAddress.toLowerCase() === staticLaunch.launchAddress.toLowerCase()
     ) || {};
     
     return {
@@ -582,7 +583,7 @@ export default function Component() {
                       key={launch.tokenAddress} 
                       className="cursor-pointer" 
                       onClick={() => router.push(
-                        `/token/${launch.tokenAddress}?b=${launch.deployBlock}&s=${launch.symbol}`
+                        `/token/${launch.tokenAddress}?b=${launch.deployBlock}&s=${launch.symbol}&c=${CHAIN.key}`
                       )}
                     >
                       <Card className="bg-[#21325e]/30 border-[#21325e] backdrop-blur-sm hover:bg-[#21325e]/50 transition-colors duration-300 rounded-2xl overflow-hidden">

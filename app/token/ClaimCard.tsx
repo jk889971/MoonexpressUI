@@ -11,7 +11,7 @@ import {
   useBlockNumber,
   usePublicClient
 } from "wagmi"
-import { bscTestnet } from "@/lib/chain"
+import { useChain } from '@/hooks/useChain'
 import launchAbi from "@/lib/abis/CurveLaunch.json"
 import { getContractError } from "viem"
 
@@ -20,8 +20,9 @@ export default function ClaimCard({
 }: {
   launchAddress: `0x${string}` | undefined
 }) {
-  const publicClient = usePublicClient({ chainId: bscTestnet.id });
-  const { data: block } = useBlockNumber({ chainId: bscTestnet.id, watch: true });
+  const [CHAIN] = useChain()
+  const publicClient = usePublicClient({ chainId: CHAIN.chain.id });
+  const { data: block } = useBlockNumber({ chainId: CHAIN.chain.id, watch: true });
   const { address: account } = useAccount();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -29,7 +30,7 @@ export default function ClaimCard({
     address: launchAddress,
     abi: launchAbi,
     functionName: "getClaimView",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { 
       enabled: Boolean(launchAddress),
       refetchInterval: 1000
@@ -40,7 +41,7 @@ export default function ClaimCard({
     address: launchAddress,
     abi: launchAbi,
     functionName: "finalized",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { 
       enabled: Boolean(launchAddress),
       refetchInterval: 1000
@@ -52,7 +53,7 @@ export default function ClaimCard({
     abi: launchAbi,
     functionName: "buyers",
     args: account ? [account] : undefined,
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(account) },
   });
 
@@ -239,7 +240,7 @@ export default function ClaimCard({
         address:      launchAddress,
         abi:          launchAbi,
         functionName: fnName,
-        chainId:      bscTestnet.id,
+        chainId:      CHAIN.chain.id,
       });
 
       await publicClient.waitForTransactionReceipt({

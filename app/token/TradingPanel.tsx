@@ -7,7 +7,7 @@ import { useBalance, useAccount, useReadContract, useWriteContract, useBlockNumb
 import launchAbi from "@/lib/abis/CurveLaunch.json";
 import tokenAbi  from "@/lib/abis/CurveToken.json";
 import { parseEther, parseUnits, decodeEventLog, formatEther, parseAbiItem } from "viem";
-import { bscTestnet } from "@/lib/chain";
+import { useChain } from '@/hooks/useChain'
 
 const PRICE_EVT    = parseAbiItem('event PriceUpdate(uint256 priceUsd,uint256 timestamp)');
 const MCAP_EVT     = parseAbiItem('event MarketCapUpdate(uint256 marketCapUsd,uint256 timestamp)');
@@ -34,7 +34,7 @@ export default function TradingPanel({
   const [amount, setAmount] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const [selectedPercentage, setSelectedPercentage] = useState<string>("");
-
+  const [CHAIN] = useChain()
   const [tradingTab, setTradingTab] = useState<"buy" | "sell">(
     showSellTab ? initialTab : "buy"
   );
@@ -43,9 +43,9 @@ export default function TradingPanel({
     setTradingTab(initialTab);
   }, [initialTab]);
 
-  const publicClient = usePublicClient({ chainId: bscTestnet.id });
+  const publicClient = usePublicClient({ chainId: CHAIN.chain.id });
 
-  const { data: block } = useBlockNumber({ chainId: bscTestnet.id, watch: true })
+  const { data: block } = useBlockNumber({ chainId: CHAIN.chain.id, watch: true })
 
   const { address: wallet } = useAccount();
 
@@ -67,7 +67,7 @@ export default function TradingPanel({
     ],
     functionName: 'buyers',
     args: wallet ? [wallet] : undefined,
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(wallet), refetchInterval: 1000 },
   })
 
@@ -77,7 +77,7 @@ export default function TradingPanel({
 
   const { data: bnbBalBig, refetch: refetchBal } = useBalance({
     address: wallet,
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(wallet), refetchInterval: 1000 },
   })
 
@@ -87,7 +87,7 @@ export default function TradingPanel({
     address:      launchAddress,
     abi:          launchAbi,
     functionName: "maxBuy",
-    chainId:      bscTestnet.id,
+    chainId:      CHAIN.chain.id,
     query: { enabled: Boolean(launchAddress), refetchInterval: 1000 },
   });
 
@@ -101,7 +101,7 @@ export default function TradingPanel({
     address: launchAddress,
     abi: launchAbi,
     functionName: "priceFeed",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(launchAddress), refetchInterval: 1000 },
   });
   const {
@@ -111,7 +111,7 @@ export default function TradingPanel({
     address: launchAddress,
     abi: launchAbi,
     functionName: "getCurrentPriceUsd",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(launchAddress), refetchInterval: 1000 },
   })
   const priceUsd = priceUsdBig ? Number(priceUsdBig) / 1e8 : 0
@@ -129,7 +129,7 @@ export default function TradingPanel({
             {name:"",type:"uint80"}
           ], stateMutability:"view", type:"function"}],
     functionName: "latestRoundData",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
     query: { enabled: Boolean(priceFeed), refetchInterval: 1000 },
   });
   const bnbUsd = lastRound ? Number((lastRound as bigint[])[1]) / 1e8 : 0;
@@ -150,11 +150,11 @@ export default function TradingPanel({
       address: launchAddress,
       abi:     launchAbi,
       functionName: 'buy',
-      chainId: bscTestnet.id,
+      chainId: CHAIN.chain.id,
       value:   parseEther(amount),
     });
 
-    await fetch(`/api/trades/${launchAddress}`, {
+    await fetch(`/api/trades/${launchAddress}?chain=${CHAIN.key}`, {
       method: 'POST',
       headers: jsonHeaders,
       body: JSON.stringify({ wallet, type: 'Buy', txHash: hash }),
@@ -184,7 +184,7 @@ export default function TradingPanel({
       } catch {}
     }
 
-    await fetch(`/api/trades/${launchAddress}`, {
+    await fetch(`/api/trades/${launchAddress}?chain=${CHAIN.key}`, {
       method: 'PATCH',
       headers: jsonHeaders,
       body: JSON.stringify({
@@ -220,10 +220,10 @@ export default function TradingPanel({
       abi:         launchAbi,
       functionName:'sellTokens',
       args:        [parseUnits(sellInt.toString(), 18)],
-      chainId:     bscTestnet.id,
+      chainId:     CHAIN.chain.id,
     });
 
-    await fetch(`/api/trades/${launchAddress}`, {
+    await fetch(`/api/trades/${launchAddress}?chain=${CHAIN.key}`, {
       method: 'POST',
       headers: jsonHeaders,
       body: JSON.stringify({ wallet, type: 'Sell', txHash: hash }),
@@ -252,7 +252,7 @@ export default function TradingPanel({
       } catch {}
     }
 
-    await fetch(`/api/trades/${launchAddress}`, {
+    await fetch(`/api/trades/${launchAddress}?chain=${CHAIN.key}`, {
       method: 'PATCH',
       headers: jsonHeaders,
       body: JSON.stringify({
@@ -320,14 +320,14 @@ export default function TradingPanel({
     address: tokenAddress,
     abi:      tokenAbi,
     functionName: "symbol",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
   });
 
   const { data: ipfsUri } = useReadContract({
     address: launchAddress,
     abi:      launchAbi,
     functionName: "imageURI",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,
   });
 
   const imgSrc =
@@ -444,8 +444,12 @@ export default function TradingPanel({
               </>
             ) : (
               <>
-                <div className="w-6 h-6 bg-yellow-500 rounded-full" />
-                <span className="text-white font-medium">BNB</span>
+                {CHAIN.nativeLogo ? (
+                                      <img src={CHAIN.nativeLogo} className="w-6 h-6" />
+                                    ) : (
+                                      <div className="w-6 h-6 rounded-full bg-[#19c0f4]" />
+                                    )}
+                <span className="text-white font-medium">{CHAIN.nativeSymbol}</span>
               </>
             )}
           </div>
@@ -454,13 +458,13 @@ export default function TradingPanel({
             <span className="text-[#c8cdd1] text-sm">
               Balance:&nbsp;
               {tradingTab === "buy"
-                ? `${bnbBal.toFixed(4)} BNB`
+                ? `${bnbBal.toFixed(4)} ${CHAIN.nativeSymbol}`
                 : allocated.toLocaleString("en-US", { maximumFractionDigits: 0 })}
             </span>
             {tradingTab === "buy" && (
               <span className="text-[#c8cdd1] text-sm">
                 Buy Limit:&nbsp;
-                {wallet ? roomBNB.toFixed(4) : "-"} BNB
+                {wallet ? roomBNB.toFixed(4) : "-"} {CHAIN.nativeSymbol}
               </span>
             )}
           </div>

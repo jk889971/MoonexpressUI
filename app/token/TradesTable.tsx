@@ -2,6 +2,8 @@
 
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher"
+import { useChain } from '@/hooks/useChain'
+import { explorerTxUrl, explorerAddrUrl } from "@/lib/chains/catalog"
 
 interface TradesTableProps {
   launchAddress: string
@@ -9,8 +11,9 @@ interface TradesTableProps {
 }
 
 export default function TradesTable({ launchAddress, symbol }: TradesTableProps) {
+  const [CHAIN] = useChain()
   const { data: rows = [], error, isLoading } = useSWR(
-    `/api/trades/${launchAddress}`,
+    `/api/trades/${launchAddress}?chain=${CHAIN.key}`,
     fetcher,
     {
       refreshInterval: 5000,   
@@ -19,7 +22,7 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
   )
 
   const { data: launchInfo = {}, error: launchError } = useSWR(
-    launchAddress ? ['/api/launch-dynamic', launchAddress] : null,
+    launchAddress ? [`/api/launch-dynamic?chain=${CHAIN.key}`, launchAddress] : null,
     async ([url, addr]) => {
       const res = await fetch(url, {
         method: 'POST',
@@ -66,7 +69,7 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
             <tr className="border-b border-[#21325e]">
               <th className="py-3 px-4 text-left text-[#c8cdd1] text-sm font-medium text-[clamp(0.875rem,1.5vw,1.125rem)]">Wallet</th>
               <th className="py-3 px-4 text-left text-[#c8cdd1] text-sm font-medium text-[clamp(0.875rem,1.5vw,1.125rem)]">Type</th>
-              <th className="py-3 px-4 text-left text-[#c8cdd1] text-sm font-medium text-[clamp(0.875rem,1.5vw,1.125rem)]">BNB</th>
+              <th className="py-3 px-4 text-left text-[#c8cdd1] text-sm font-medium text-[clamp(0.875rem,1.5vw,1.125rem)]">{CHAIN.nativeSymbol}</th>
               <th className="py-3 px-4 text-left text-[#c8cdd1] text-sm font-medium text-[clamp(0.875rem,1.5vw,1.125rem)]">{symbol}</th>
               <th className="py-3 px-4 text-left text-[#c8cdd1] text-sm font-medium text-[clamp(0.875rem,1.5vw,1.125rem)]">Date</th>
               <th className="py-3 px-4 text-left text-[#c8cdd1] text-sm font-medium text-[clamp(0.875rem,1.5vw,1.125rem)]">Txn Hash</th>
@@ -89,7 +92,7 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
                     }}
                   >
                   <a
-                    href={`https://testnet.bscscan.com/address/${r.wallet}`}
+                    href={explorerAddrUrl(CHAIN, r.wallet)}
                     target="_blank" rel="noopener noreferrer"
                     className="text-white text-sm underline"
                   >
@@ -155,7 +158,7 @@ export default function TradesTable({ launchAddress, symbol }: TradesTableProps)
                     }}
                   >
                   <a
-                    href={`https://testnet.bscscan.com/tx/${r.txHash}`}
+                    href={explorerTxUrl(CHAIN, r.txHash)}
                     target="_blank" rel="noopener noreferrer"
                     className="text-[#19c0f4] text-sm underline"
                   >

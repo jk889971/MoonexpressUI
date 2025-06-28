@@ -9,8 +9,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { AlertTriangle, ChevronDown } from "lucide-react"
 import NextImage from "next/image"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, } from "@/components/ui/select"
-import factoryAbi from '@/lib/abis/CurveTokenFactory.json'
+import {
+  Select, SelectTrigger, SelectValue,
+  SelectContent, SelectItem,
+} from "@/components/ui/select"
+
+import { useChain } from '@/hooks/useChain'
+import factoryAbi           from '@/lib/abis/CurveTokenFactory.json'
+import launchAbi            from "@/lib/abis/CurveLaunch.json"
+import { useCustomRpc }        from '@/lib/customrpc'
+
 import {
   useSimulateContract,
   useWriteContract,
@@ -19,11 +27,10 @@ import {
   useAccount,
   useBalance,
 } from 'wagmi'
-import { parseEther, formatEther, decodeEventLog, encodeEventTopics, parseAbiItem } from "viem"
-import { bscTestnet } from '@/lib/chain'
-import { FACTORY_ADDRESS } from '@/lib/constants'
-import launchAbi from "@/lib/abis/CurveLaunch.json"
-import { customrpc } from '@/lib/customrpc'
+import {
+  parseEther, formatEther, decodeEventLog,
+  encodeEventTopics
+} from "viem"
 
 type Toast = {
   id: number
@@ -31,8 +38,9 @@ type Toast = {
 }
 
 export default function CreateTokenForm() {
+  const [CHAIN] = useChain()
   const router = useRouter()
-
+  const rpc = useCustomRpc()
   const [tokenName, setTokenName] = useState<string>("")
   const [symbol, setSymbol] = useState<string>("")
   const [description, setDescription] = useState<string>("")
@@ -73,6 +81,27 @@ export default function CreateTokenForm() {
   const [isDragging, setIsDragging] = useState(false)
 
   const [selectedAmountButton, setSelectedAmountButton] = useState<string | null>(null)
+
+  async function getLogsWithRetry(opts: {
+    address:   string
+    fromBlock: number | bigint
+    toBlock:   number | bigint
+    topics?:   (string | null)[]
+  }) {
+    for (let i = 0; i < 5; i++) {
+      try {
+        return await rpc.getLogs(opts)
+      } catch (e: any) {
+        if (e.name === 'LimitExceededRpcError') {
+          // wait ½ s then try again
+          await new Promise(r => setTimeout(r, 500))
+          continue
+        }
+        throw e
+      }
+    }
+    throw new Error('Failed to fetch logs after 5 retries')
+  }
 
   const didIndexRef = useRef(false)
 
@@ -206,11 +235,8 @@ export default function CreateTokenForm() {
 
   const durationSec = durationMin ? BigInt(durationMin * 60) : undefined
 
-  const {
-    data: sim,
-    error: simError,
-  } = useSimulateContract({
-    address: FACTORY_ADDRESS,
+  const { data: sim, error: simError } = useSimulateContract({
+    address: CHAIN.factoryAddress,    
     abi: factoryAbi,
     functionName: "createLaunch",
     args: [
@@ -223,7 +249,7 @@ export default function CreateTokenForm() {
       durationSec ?? 0n,
     ],
     value: creatorPreBuys ? parseEther(preBuyAmount || "0") : undefined,
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,     
     query: {
       enabled:
         !!tokenName && !!symbol && !!selectedFile && !!imageURI &&
@@ -231,37 +257,30 @@ export default function CreateTokenForm() {
     },
   })
 
-  const predictedToken = (sim?.result?.[0] as `0x${string}` | undefined)
+  const predictedToken  = sim?.result?.[0] as `0x${string}` | undefined
   const predictedLaunch = sim?.result?.[1] as `0x${string}` | undefined
 
-  const {
-    writeContract,
-    data: hash,   
-    isPending: isWriting,
-    error: writeError,
-  } = useWriteContract()
+  const { writeContract, data: hash, isPending: isWriting, error: writeError } =
+    useWriteContract()
 
-  const {
-    data: receipt,         
-    isSuccess,
-    error: waitError,
-  } = useWaitForTransactionReceipt({
-    hash,
-    chainId: bscTestnet.id,
-  })
+  const { data: receipt, isSuccess, error: waitError } =
+    useWaitForTransactionReceipt({
+      hash,
+      chainId: CHAIN.chain.id,      
+    })
 
-  const { address } = useAccount()    
+  const { address } = useAccount()
   const { data: bal } = useBalance({
     address,
-    chainId: bscTestnet.id,
-    watch: true,                   
+    chainId: CHAIN.chain.id,     
+    watch: true,
   })
 
   const { data: maxBuyWei } = useReadContract({
-    address: FACTORY_ADDRESS,
+    address: CHAIN.factoryAddress,  
     abi: factoryAbi,
     functionName: "maxBuy",
-    chainId: bscTestnet.id,
+    chainId: CHAIN.chain.id,    
   })
 
   const GAS_BUFFER = parseEther("0.0025") 
@@ -310,7 +329,7 @@ export default function CreateTokenForm() {
       const deployBlock = receipt.blockNumber.toString()
 
       try {
-        await fetch("/api/launch", {
+        await fetch(`/api/launch?chain=${CHAIN.key}`, {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -330,16 +349,13 @@ export default function CreateTokenForm() {
 
       if (creatorPreBuys && Number(preBuyAmount) > 0) {
         try {
-          const get = (topic0: `0x${string}`) =>
-          customrpc.getLogs({
+          const boughtLogs = await getLogsWithRetry({
             address:   launchAddr,
             fromBlock: receipt.blockNumber,
             toBlock:   receipt.blockNumber,
-            topics:    [topic0],      
-          });
-
-          const boughtLogs = await get(tokensBoughtTopic);
-          if (!boughtLogs.length) throw new Error('TokensBought not found');
+            topics:    [tokensBoughtTopic],
+          })
+          if (!boughtLogs.length) throw new Error('TokensBought not found')
 
           const boughtDec = decodeEventLog({
             abi:    launchAbi,
@@ -353,7 +369,12 @@ export default function CreateTokenForm() {
           const txHash      = boughtLogs[0].transactionHash;
 
           let priceUsdBig = 0n, priceTs = 0n;
-          const priceLogs = await get(priceUpdateTopic);
+          const priceLogs = await getLogsWithRetry({
+            address:   launchAddr,
+            fromBlock: receipt.blockNumber,
+            toBlock:   receipt.blockNumber,
+            topics:    [priceUpdateTopic],
+          })
           if (priceLogs.length) {
             const dec = decodeEventLog({
               abi: launchAbi, data: priceLogs[0].data, topics: priceLogs[0].topics, strict: true,
@@ -363,7 +384,12 @@ export default function CreateTokenForm() {
           }
 
           let mcapUsdBig = 0n, mcapTs = 0n;
-          const mcapLogs = await get(mcapUpdateTopic);
+          const mcapLogs = await getLogsWithRetry({
+            address:   launchAddr,
+            fromBlock: receipt.blockNumber,
+            toBlock:   receipt.blockNumber,
+            topics:    [mcapUpdateTopic],
+          })
           if (mcapLogs.length) {
             const dec = decodeEventLog({
               abi: launchAbi, data: mcapLogs[0].data, topics: mcapLogs[0].topics, strict: true,
@@ -372,16 +398,16 @@ export default function CreateTokenForm() {
             mcapTs     = dec.args.timestamp    as bigint;
           }
 
-          await fetch(`/api/trades/${launchAddr}`, {
+          await fetch(`/api/trades/${launchAddr}?chain=${CHAIN.key}`, {
             method : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body   : JSON.stringify({ wallet: buyer, type: 'Buy', txHash }),
           });
 
-          const blk = await customrpc.getBlock({ blockHash: boughtLogs[0].blockHash });
+          const blk = await rpc.getBlock({ blockHash: boughtLogs[0].blockHash });
           const ts  = Number(blk.timestamp);  
 
-          await fetch(`/api/trades/${launchAddr}`, {
+          await fetch(`/api/trades/${launchAddr}?chain=${CHAIN.key}`, {
             method : 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body   : JSON.stringify({
@@ -706,8 +732,12 @@ export default function CreateTokenForm() {
                 <div className="flex justify-between items-end mb-1 max-[220px]:flex-col max-[220px]:items-center max-[220px]:gap-3">
                   <span className="text-white text-sm font-medium max-[220px]:order-2">Amount</span>
                   <div className="flex items-center gap-2 bg-[#21325e] rounded-lg px-3 py-1.5 max-[220px]:order-1">
-                    <div className="w-5 h-5 bg-yellow-500 rounded-full"></div>
-                    <span className="text-white text-sm font-medium">BNB</span>
+                    {CHAIN.nativeLogo ? (
+                      <img src={CHAIN.nativeLogo} className="w-5 h-5" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-[#19c0f4]" />
+                    )}
+                    <span className="text-white text-sm font-medium">{CHAIN.nativeSymbol}</span>
                   </div>
                 </div>
 
@@ -861,7 +891,7 @@ export default function CreateTokenForm() {
               <Button
                 onClick={() => {
                   if (newTokenAddr && deployBlock) {
-                    router.push(`/token/${newTokenAddr}?b=${deployBlock}&s=${encodeURIComponent(symbol)}`)
+                    router.push(`/token/${newTokenAddr}?b=${deployBlock}&s=${encodeURIComponent(symbol)}&c=${CHAIN.key}`)
                   }
                 }}
                 disabled={!newTokenAddr || !deployBlock}

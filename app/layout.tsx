@@ -4,6 +4,7 @@ import "./globals.css";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { Providers } from '@/components/Providers';
+import { ChainProvider } from '@/hooks/useChain'
 
 export const metadata: Metadata = {
   title: "Moonexpress | Pump your coin to the moon",
@@ -44,13 +45,15 @@ export default function RootLayout({
         <meta name="theme-color" content="#132043" />
       </head>
       <body className="min-h-screen bg-[#000025] text-white max-[1023px]:pb-16">
-        <Providers>
-          <SiteNavbar />
+        <ChainProvider>
+          <Providers>
+            <SiteNavbar />
 
-          <main className="flex-1">{children}</main>
+            <main className="flex-1">{children}</main>
 
-          <SiteFooter />
-        </Providers>
+            <SiteFooter />
+          </Providers>
+        </ChainProvider>
       </body>
     </html>
   );

@@ -1,7 +1,7 @@
 // lib/curveDataFeed.ts
 import { createPublicClient, http } from 'viem';
 import launchAbi from '@/lib/abis/CurveLaunch.json';
-import { bscTestnet } from '@/lib/chain';
+import type { ChainConfig } from '@/lib/chains/catalog';
 
 type Bar = {
   time:   number;  
@@ -19,10 +19,11 @@ async function fetchHistory(
   launch: string,
   kind: 'price' | 'mcap',
   fromSec: number,
-  toSec: number
+  toSec: number,
+  chainKey: string
 ): Promise<{ timestamp: number; raw_value: number }[]> {
   const url =
-    `/api/chart-history?launch=${launch}&kind=${kind}&from=${fromSec}&to=${toSec}`;
+    `/api/chart-history?launch=${launch}&kind=${kind}&from=${fromSec}&to=${toSec}&chain=${chainKey}`;
   return fetch(url).then(r => r.json());
 }
 
@@ -30,18 +31,17 @@ function createFeed(
   launch: `0x${string}`,
   readFn: 'getCurrentPriceUsd' | 'getLiveMarketCapUsd',
   symbolCfg: {
-    name: string;
-    ticker: string;
+    name:        string;
+    ticker:      string;
     description: string;
-    pricescale: number;
-  }
+    pricescale:  number;
+  },
+  cfg: ChainConfig
 ) {
-  const rpcUrl =
-    process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
-    'https://bsc-testnet-rpc.bnbchain.org';
+  const rpcUrl = (cfg.envRpc && cfg.envRpc.length ? cfg.envRpc : undefined) ?? cfg.rpcUrls[0];
 
   const client = createPublicClient({
-    chain: bscTestnet,
+    chain:     cfg.chain,
     transport: http(rpcUrl),
   });
 
@@ -68,7 +68,8 @@ function createFeed(
       launch,
       isMarketcap ? 'mcap' : 'price',
       fromSec,
-      toSec
+      toSec,
+      cfg.key
     );
 
     for (const { timestamp, raw_value } of rows) {
@@ -186,27 +187,39 @@ function createFeed(
 }
 
 export function makePriceFeed(
-  launch: `0x${string}`,
+  launch:       `0x${string}`,
   _deployBlock: bigint = 0n,
-  symbol: string
+  symbol:       string,
+  cfg:          ChainConfig
 ) {
-  return createFeed(launch, 'getCurrentPriceUsd', {
-    name: `${symbol}/USD`,
-    ticker: `${symbol}/USD`,
-    description: `${symbol}/USD (Bonding Curve)`,
-    pricescale: 100_000_000,
-  });
+  return createFeed(
+    launch,
+    'getCurrentPriceUsd',
+    {
+      name:        `${symbol}/USD`,
+      ticker:      `${symbol}/USD`,
+      description: `${symbol}/USD (Bonding Curve)`,
+      pricescale:  100_000_000,
+    },
+    cfg
+  );
 }
 
 export function makeMarketcapFeed(
-  launch: `0x${string}`,
+  launch:       `0x${string}`,
   _deployBlock: bigint = 0n,
-  symbol: string
+  symbol:       string,
+  cfg:          ChainConfig
 ) {
-  return createFeed(launch, 'getLiveMarketCapUsd', {
-    name: `${symbol}/MC`,
-    ticker: `${symbol}/MC`,
-    description: `${symbol} Market Cap (USD)`,
-    pricescale: 100,
-  });
+  return createFeed(
+    launch,
+    'getLiveMarketCapUsd',
+    {
+      name:        `${symbol}/MC`,
+      ticker:      `${symbol}/MC`,
+      description: `${symbol} Market Cap (USD)`,
+      pricescale:  100,
+    },
+    cfg
+  );
 }

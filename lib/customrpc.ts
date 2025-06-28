@@ -1,11 +1,17 @@
-// src/lib/customrpc.ts
-import { createPublicClient, http } from "viem"
-import { CHAIN } from "@/lib/chains/current"
+// lib/customrpc.ts
+import { createPublicClient, http } from 'viem'
+import { useMemo }                  from 'react'
+import { useChain }                 from '@/hooks/useChain'
 
-const rpcUrl =
-  (CHAIN.envRpc ? process.env[CHAIN.envRpc] : undefined) ?? CHAIN.rpcUrls[0]
+export function useCustomRpc() {
+  const [cfg] = useChain()
 
-export const customrpc = createPublicClient({
-  chain: CHAIN.chain,
-  transport: http(rpcUrl)
-})
+  return useMemo(
+    () =>
+      createPublicClient({
+        chain    : cfg.chain,
+        transport: http(cfg.envRpc ?? cfg.rpcUrls[0]),
+      }),
+    [cfg],
+  )
+}

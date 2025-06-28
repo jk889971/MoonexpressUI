@@ -1,26 +1,39 @@
 // app/api/trades/[addr]/route.ts
 import { Prisma } from '@prisma/client'
+import { CHAINS, type ChainKey } from '@/lib/chains/catalog'
 
 async function getDb() {
   const mod = await import('@/lib/db')
   return mod.prisma as typeof import('@/lib/db').prisma
 }
 
+function pickChainKey(req: Request): ChainKey {
+  const url = new URL(req.url)
+  const k = url.searchParams.get('chain') as ChainKey | null
+  if (!k || !(k in CHAINS)) {
+    throw new Error('Missing or invalid chain parameter')
+  }
+  return k
+}
+
 export async function POST(
   req: Request,
-  { params }: { params: { addr: string } },
+  { params }: { params: { addr: string } }
 ) {
-  const prisma        = await getDb()
-  const launchAddress = params.addr.toLowerCase()
+  const prisma = await getDb()
+  const { addr } = await params
+  const launchAddress = addr.toLowerCase()
+  const chainKey = pickChainKey(req)
   const { wallet, type, txHash } = await req.json()
 
   if (!wallet || !type || !txHash)
     return new Response('Bad request', { status: 400 })
 
   await prisma.trade.upsert({
-    where:  { txHash },
+    where: { txHash },
     update: {},
     create: {
+      chainKey,
       launchAddress,
       wallet,
       type,
@@ -34,19 +47,23 @@ export async function POST(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { addr: string } },
+  { params }: { params: { addr: string } }
 ) {
-  const prisma        = await getDb()
-  const launchAddress = params.addr.toLowerCase()
+  const prisma = await getDb()
+  const { addr } = await params
+  const launchAddress = addr.toLowerCase()
+  const chainKey = pickChainKey(req)
 
   const {
     txHash,
     bnbAmount,
     tokenAmount,
     blockTimestamp,
-    blockNumber           = 0,
-    priceUsd,  priceTs,
-    mcapUsd,   mcapTs,
+    blockNumber = 0,
+    priceUsd,
+    priceTs,
+    mcapUsd,
+    mcapTs,
   } = await req.json()
 
   if (!txHash)
@@ -59,11 +76,11 @@ export async function PATCH(
 
   await prisma.trade.update({
     where: { txHash },
-    data : {
-      bnbAmount  : new Prisma.Decimal(bnbAmount.toString()),
+    data: {
+      bnbAmount: new Prisma.Decimal(bnbAmount.toString()),
       tokenAmount: new Prisma.Decimal(tokenAmount.toString()),
-      pending    : false,
-      createdAt  : new Date(blockTimestamp * 1_000),
+      pending: false,
+      createdAt: new Date(blockTimestamp * 1_000),
     },
   })
 
@@ -73,10 +90,11 @@ export async function PATCH(
   if (safe(priceUsd) && safe(priceTs)) {
     await prisma.priceUpdate.create({
       data: {
+        chainKey,
         launchAddress,
-        kind       : 'price',
-        timestamp  : BigInt(priceTs),
-        rawValue   : new Prisma.Decimal(priceUsd.toString()),
+        kind: 'price',
+        timestamp: BigInt(priceTs),
+        rawValue: new Prisma.Decimal(priceUsd.toString()),
         blockNumber: BigInt(blockNumber),
       },
     })
@@ -85,10 +103,11 @@ export async function PATCH(
   if (safe(mcapUsd) && safe(mcapTs)) {
     await prisma.priceUpdate.create({
       data: {
+        chainKey,
         launchAddress,
-        kind       : 'mcap',
-        timestamp  : BigInt(mcapTs),
-        rawValue   : new Prisma.Decimal(mcapUsd.toString()),
+        kind: 'mcap',
+        timestamp: BigInt(mcapTs),
+        rawValue: new Prisma.Decimal(mcapUsd.toString()),
         blockNumber: BigInt(blockNumber),
       },
     })
@@ -98,15 +117,17 @@ export async function PATCH(
 }
 
 export async function GET(
-  _req: Request,
-  { params }: { params: { addr: string } },
+  req: Request,
+  { params }: { params: { addr: string } }
 ) {
-  const prisma        = await getDb()
-  const launchAddress = params.addr.toLowerCase()
+  const prisma = await getDb()
+  const { addr } = await params
+  const launchAddress = addr.toLowerCase()
+  const chainKey = pickChainKey(req)
 
   const trades = await prisma.trade.findMany({
-    where:  { launchAddress, pending: false },
-    orderBy:{ createdAt: 'desc' },
+    where: { chainKey, launchAddress, pending: false },
+    orderBy: { createdAt: 'desc' },
   })
 
   return new Response(JSON.stringify(trades))

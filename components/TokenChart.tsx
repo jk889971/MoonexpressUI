@@ -4,10 +4,11 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { widget, ChartingLibraryWidgetOptions, TimeFrameItem } from 'charting_library';
 import { makePriceFeed, makeMarketcapFeed } from '@/lib/curveDataFeed';
+import { useChain } from '@/hooks/useChain';
 
 export default function TokenChart({
   launchAddress,
-  deployBlock,
+  deployBlock = 0n,
   symbol,
 }: {
   launchAddress: `0x${string}`;
@@ -19,18 +20,19 @@ export default function TokenChart({
 
   const [chartType, setChartType] = useState<'price' | 'marketcap'>('price');
 
-  const priceFeed     = useMemo(
-    () => makePriceFeed(launchAddress, deployBlock ?? 0n, symbol),
-    [launchAddress, deployBlock, symbol]
+  const [chainCfg] = useChain();
+
+  const priceFeed = useMemo(
+    () => makePriceFeed(launchAddress, deployBlock, symbol, chainCfg),
+    [launchAddress, deployBlock, symbol, chainCfg],
   );
+
   const marketcapFeed = useMemo(
-    () => makeMarketcapFeed(launchAddress, deployBlock ?? 0n, symbol),
-    [launchAddress, deployBlock, symbol]
+    () => makeMarketcapFeed(launchAddress, deployBlock, symbol, chainCfg),
+    [launchAddress, deployBlock, symbol, chainCfg],
   );
-  const widgetSym = useMemo(
-    () => (chartType === 'price' ? `${symbol}/USD` : `${symbol}/MC`),
-    [chartType, symbol]
-  );
+
+  const widgetSym = chartType === 'price' ? `${symbol}/USD` : `${symbol}/MC`;
   
   useEffect(() => {
     if (!containerRef.current) return;
@@ -96,7 +98,7 @@ export default function TokenChart({
     });
 
     return () => tv.remove();
-  }, [chartType, widgetSym]);
+  }, [chartType, widgetSym, priceFeed, marketcapFeed]);
 
   return <div ref={containerRef} className="h-[30rem] w-full max-[370px]:h-[32rem]" />;
 }

@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher";
 import { useAccount } from 'wagmi'
+import { useChain } from '@/hooks/useChain'
 
 type Comment = {
   id: string
@@ -44,12 +45,14 @@ export default function DiscussionPanel({
   }) {
 
   const { address, isConnected } = useAccount()
+
+  const [CHAIN] = useChain()
   
   const {
     data: flat = [],  
     mutate,           
   } = useSWR<Comment[]>(
-    () => `/api/comments/${launchAddress}`,
+    () => `/api/comments/${launchAddress}?chain=${CHAIN.key}`,
     fetcher
   );
 
@@ -66,7 +69,7 @@ export default function DiscussionPanel({
 
   async function handlePostReply(parentId: string) {
     if (replyText.trim() === "") return
-    await fetch(`/api/comments/${launchAddress}`, {
+    await fetch(`/api/comments/${launchAddress}?chain=${CHAIN.key}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -141,7 +144,7 @@ export default function DiscussionPanel({
           disabled={!isConnected || commentText.trim() === '' }
           onClick={async () => {
             if (commentText.trim() === "") return
-            await fetch(`/api/comments/${launchAddress}`, {
+            await fetch(`/api/comments/${launchAddress}?chain=${CHAIN.key}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({

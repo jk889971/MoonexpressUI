@@ -8,72 +8,72 @@ datasource db {
 }
 
 model Launch {
-  launchAddress String   @id @db.VarChar(42)
-  tokenAddress  String   @db.VarChar(42)
-  description   String?  @db.Text
-  twitterUrl    String?  @db.VarChar(255)
-  telegramUrl   String?  @db.VarChar(255)
-  websiteUrl    String?  @db.VarChar(255)
-  deployBlock   Int      @default(0)
-  createdAt     DateTime @default(now())
+  chainKey      String    @db.VarChar(32)
+  launchAddress String    @db.VarChar(42)
+  tokenAddress  String    @db.VarChar(42)
+  description   String?   @db.Text
+  twitterUrl    String?   @db.VarChar(255)
+  telegramUrl   String?   @db.VarChar(255)
+  websiteUrl    String?   @db.VarChar(255)
+  deployBlock   Int       @default(0)
+  createdAt     DateTime  @default(now())
   comments      Comment[]
   trades        Trade[]
 
-  @@index([launchAddress])
+  @@id([chainKey, launchAddress])
+  @@index([chainKey, launchAddress])
 }
 
 model Profile {
-  wallet      String   @id @db.VarChar(42)
+  wallet      String    @id @db.VarChar(42)
   avatarIndex Int
   comments    Comment[]
 }
 
 model Trade {
-  id            Int      @id @default(autoincrement())
-  launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
-  launchAddress String   @db.VarChar(42)
+  id             Int       @id @default(autoincrement())
+  chainKey       String    @db.VarChar(32)
+  launchAddress  String    @db.VarChar(42)
+  launch         Launch    @relation(fields: [chainKey, launchAddress], references: [chainKey, launchAddress])
+  wallet         String    @db.VarChar(42)
+  type           String
+  bnbAmount      Decimal   @db.Decimal(24, 18) @default(0)
+  tokenAmount    Decimal   @db.Decimal(32, 0)  @default(0)
+  txHash         String    @unique @db.VarChar(66)
+  pending        Boolean   @default(true)
+  blockTimestamp BigInt?
+  blockNumber    Int?
+  createdAt      DateTime  @default(now())
 
-  wallet        String   @db.VarChar(42)
-  type          String             
-
-  bnbAmount   Decimal @db.Decimal(24, 18) @default(0)
-  tokenAmount Decimal @db.Decimal(32, 0)  @default(0)
-
-  txHash        String   @unique @db.VarChar(66)
-
-  pending       Boolean  @default(true)  
-  createdAt     DateTime @default(now()) 
-
-  @@index([launchAddress, createdAt])
+  @@index([chainKey, launchAddress, createdAt])
 }
 
 model Comment {
-  id            Int      @id @default(autoincrement())
-  launch        Launch   @relation(fields: [launchAddress], references: [launchAddress])
-  launchAddress String   @db.VarChar(42)
-
+  id            Int       @id @default(autoincrement())
+  chainKey      String    @db.VarChar(32)
+  launchAddress String    @db.VarChar(42)
+  launch        Launch    @relation(fields: [chainKey, launchAddress], references: [chainKey, launchAddress])
   parentId      Int?
-  parent        Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  parent        Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies       Comment[] @relation("CommentReplies")
+  wallet        String    @db.VarChar(42)
+  profile       Profile   @relation(fields: [wallet], references: [wallet])
+  text          String    @db.Text
+  createdAt     DateTime  @default(now())
 
-  wallet        String   @db.VarChar(42)
-  profile       Profile  @relation(fields: [wallet], references: [wallet])
-
-  text          String   @db.Text
-  createdAt     DateTime @default(now())
-
-  @@index([launchAddress])
+  @@index([chainKey, launchAddress])
 }
 
 model PriceUpdate {
-  id            BigInt   @id @default(autoincrement())
-  launchAddress String   @db.VarChar(42)
-  kind          String   @db.VarChar(6)
+  id            BigInt    @id @default(autoincrement())
+  chainKey      String    @db.VarChar(32)
+  launchAddress String    @db.VarChar(42)
+  kind          String    @db.VarChar(6)
   timestamp     BigInt
-  rawValue      Decimal  @db.Decimal(38, 12)
+  rawValue      Decimal   @db.Decimal(38, 12)
   blockNumber   BigInt
-  insertedAt    DateTime @default(now())
+  insertedAt    DateTime  @default(now())
 
-  @@index([launchAddress, kind, timestamp])
-  @@map("price_updates")       
+  @@index([chainKey, launchAddress, kind, timestamp])
+  @@map("price_updates")
 }

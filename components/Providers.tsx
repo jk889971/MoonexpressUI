@@ -1,34 +1,42 @@
 // components/Providers.tsx
 'use client'
 
-import * as React from 'react'
-import { WagmiConfig }             from 'wagmi'
+import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { WagmiConfig }                      from 'wagmi'
 import {
   RainbowKitProvider,
-  darkTheme,       
+  darkTheme,
 } from '@rainbow-me/rainbowkit'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { makeWagmiConfig }   from '@/wagmi.config'
+import { useChain }          from '@/hooks/useChain'
+import { useMemo } from 'react'
+
 import '@rainbow-me/rainbowkit/styles.css'
 import '../styles/rk-overrides.css'
 
-import { wagmiConfig, chains } from '@/wagmi.config'
-
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = React.useState(() => new QueryClient())
+  const [chainCfg]    = useChain()                   
+
+  const wagmiConfig = useMemo(
+    () => makeWagmiConfig(chainCfg),
+    [chainCfg],
+  )
 
   return (
     <WagmiConfig config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
-          chains={chains}
+          chains={wagmiConfig.chains}
+          modalSize="compact"
           theme={darkTheme({
-            accentColor:          '#19c0f4',  
-            accentColorForeground:'#000025',  
-            borderRadius:         'medium',   
-            fontStack:            'system',   
-            overlayBlur:          'small',    
+            accentColor          : '#19c0f4',
+            accentColorForeground: '#000025',
+            borderRadius         : 'medium',
+            fontStack            : 'system',
+            overlayBlur          : 'small',
           })}
-          modalSize="compact"           
         >
           {children}
         </RainbowKitProvider>
