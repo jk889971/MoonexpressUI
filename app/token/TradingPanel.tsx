@@ -72,7 +72,7 @@ export default function TradingPanel({
   })
 
   const allocated = buyer && Array.isArray(buyer) && buyer[2] !== undefined 
-  ? Number(buyer[2]) / 1e18 
+  ? Number((buyer as bigint[])[2] / 1_000000000000000000n)
   : 0;
 
   const { data: bnbBalBig, refetch: refetchBal } = useBalance({
@@ -91,9 +91,9 @@ export default function TradingPanel({
     query: { enabled: Boolean(launchAddress), refetchInterval: 1000 },
   });
 
-  const maxBuyBNB  = maxBuyWei ? Number(maxBuyWei) / 1e18 : 0;
+  const maxBuyBNB  = maxBuyWei ? Number(maxBuyWei / 1_000000000000000000n) : 0;
   const bnbPaidBNB = buyer && Array.isArray(buyer) && buyer[0] !== undefined
-    ? Number(buyer[0]) / 1e18
+    ? Number((buyer as bigint[])[0] / 1_000000000000000000n)
     : 0;
   const roomBNB    = Math.max(maxBuyBNB - bnbPaidBNB, 0); 
 

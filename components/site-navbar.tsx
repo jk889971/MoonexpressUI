@@ -44,7 +44,7 @@ export default function SiteNavbar() {
         </Link>
 
         <nav className="hidden min-[900px]:flex flex-1 justify-center space-x-8">
-          <a
+          <Link
             href="/"
             className={`
               text-white hover:text-[#19c0f4] 
@@ -52,8 +52,8 @@ export default function SiteNavbar() {
             `}
           >
             Home
-          </a>
-          <a
+          </Link>
+          <Link
             href="/create"
             className={`
               text-white hover:text-[#19c0f4] 
@@ -61,7 +61,7 @@ export default function SiteNavbar() {
             `}
           >
             Create Token
-          </a>
+          </Link>
           <a href="https://moonexpress-fun.gitbook.io/moonexpress.fun" target="_blank" rel="noopener noreferrer" className="text-white hover:text-[#19c0f4]">
             Docs
           </a>
@@ -130,7 +130,7 @@ export default function SiteNavbar() {
           hidden max-[1023px]:flex
         "
       >
-        <a
+        <Link
           href="/"
           className={`
             flex flex-col items-center justify-center p-2
@@ -156,9 +156,9 @@ export default function SiteNavbar() {
             />
           </svg>
           <span className="text-[0.65rem]">Home</span>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/create"
           data-testid="create-coin-button-mobile-menu"
           className={`
@@ -185,7 +185,7 @@ export default function SiteNavbar() {
             />
           </svg>
           <span className="text-[0.65rem]">Create</span>
-        </a>
+        </Link>
 
         <a
           href="https://moonexpress-fun.gitbook.io/moonexpress.fun"

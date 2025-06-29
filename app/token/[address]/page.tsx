@@ -1,4 +1,4 @@
-//app/token/[address]/page.tsx
+//app/token/[address]/page.tsx (dynamic routes)
 "use client"
 
 import dynamic from "next/dynamic"
