@@ -4,7 +4,7 @@ import { http }               from 'wagmi'
 import { ChainConfig }        from '@/lib/chains/catalog'
 
 export function makeWagmiConfig(cfg: ChainConfig) {
-  const rpcUrl = cfg.envRpc ?? cfg.rpcUrls[0]
+  const rpcUrl = cfg.rpcUrls[0]
 
   return getDefaultConfig({
     appName   : 'Moonexpress',
