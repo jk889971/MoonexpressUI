@@ -8,21 +8,13 @@ import {
   RainbowKitProvider,
   darkTheme,
 } from '@rainbow-me/rainbowkit'
-import { makeWagmiConfig }   from '@/wagmi.config'
-import { useChain }          from '@/hooks/useChain'
-import { useMemo } from 'react'
+import { wagmiConfig }   from '@/wagmi.config'
 
 import '@rainbow-me/rainbowkit/styles.css'
 import '../styles/rk-overrides.css'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = React.useState(() => new QueryClient())
-  const [chainCfg]    = useChain()                   
-
-  const wagmiConfig = useMemo(
-    () => makeWagmiConfig(chainCfg),
-    [chainCfg],
-  )
 
   return (
     <WagmiConfig config={wagmiConfig}>

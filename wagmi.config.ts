@@ -1,16 +1,17 @@
 // wagmi.config.ts
-import { getDefaultConfig }   from '@rainbow-me/rainbowkit'
+import { getDefaultConfig } from '@rainbow-me/rainbowkit'
 import { http }               from 'wagmi'
-import { ChainConfig }        from '@/lib/chains/catalog'
+import { CHAINS }             from '@/lib/chains/catalog'
 
-export function makeWagmiConfig(cfg: ChainConfig) {
-  const rpcUrl = cfg.rpcUrls[0]
-
-  return getDefaultConfig({
-    appName   : 'Moonexpress',
-    projectId : process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
-    chains    : [cfg.chain],
-    transports: { [cfg.chain.id]: http(rpcUrl) },
-    ssr       : true,
-  })
-}
+export const wagmiConfig = getDefaultConfig({
+  appName   : 'Moonexpress',
+  projectId : process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+  chains    : Object.values(CHAINS).map(c => c.chain),
+  transports: Object.fromEntries(
+    Object.values(CHAINS).map(c => [
+      c.chain.id,
+      http(c.rpcUrls[0]),
+    ]),
+  ),
+  ssr       : false,
+})
