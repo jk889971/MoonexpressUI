@@ -78,7 +78,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
 
   "eth-sepolia": {
     key: "eth-sepolia",
-    label: "Ethereum Sepolia",
+    label: "Eth Sepolia",
     chain: ethSepolia,
     factoryAddress: "0x6077E424C5dd726D006aCaCeEE555E835B12FB81",   
     nativeSymbol: "SEP",

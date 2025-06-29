@@ -21,10 +21,11 @@ export default function SiteNavbar() {
       <header
         className="
           z-20 
+          relative
           flex items-center justify-between px-6 py-4 
           bg-[#132043]
-          max-[250px]:flex-col        /* stack vertically at ≤250px */
-          max-[250px]:items-center     /* center‐align children at ≤250px */
+          max-[250px]:flex-col
+          max-[250px]:items-center
         "
       >
         <Link href="/" className="flex items-center gap-4">
@@ -32,18 +33,18 @@ export default function SiteNavbar() {
             <img
               src="/fulllogo.png"
               alt="Moonexpress"
-              className="h-8 max-[400px]:hidden"
+              className="h-8 max-[550px]:hidden"
             />
 
             <img
               src="/logo.png"
               alt="M"
-              className="hidden max-[400px]:block h-8"
+              className="hidden max-[550px]:block h-8"
             />
           </div>
         </Link>
 
-        <nav className="hidden min-[900px]:flex flex-1 justify-center space-x-8">
+        <nav className="hidden min-[900px]:flex flex-1 justify-start space-x-8 pl-8">
           <Link
             href="/"
             className={`
@@ -60,7 +61,7 @@ export default function SiteNavbar() {
               ${pathname === "/create" ? "text-[#19c0f4]" : ""}
             `}
           >
-            Create Token
+            Create
           </Link>
           <a href="https://moonexpress-fun.gitbook.io/moonexpress.fun" target="_blank" rel="noopener noreferrer" className="text-white hover:text-[#19c0f4]">
             Docs
@@ -73,25 +74,7 @@ export default function SiteNavbar() {
             max-[250px]:mt-2
           "
         >
-          <div className="hidden min-[900px]:block">
-            <Select value={chainCfg.key} onValueChange={(v) => setChain(v as ChainKey)}>
-              <SelectTrigger className="w-[140px] bg-[#21325e]/50 border-[#21325e] text-white">
-                <SelectValue>{chainCfg.label}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white max-h-64 overflow-y-auto">
-                {chainOptions.map((k) => (
-                  <SelectItem
-                    key={k}
-                    value={k}
-                    className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
-                  >
-                    {CHAINS[k].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex space-x-0 max-[500px]:hidden">
+          <div className="absolute left-1/2 transform -translate-x-1/2 flex space-x-0 justify-center max-[1280px]:hidden">
             <a
               href="https://t.me/moonexpressfun"
               target="_blank"
@@ -117,7 +100,25 @@ export default function SiteNavbar() {
             </Button>
             </a>
           </div>
-              <ConnectWalletButton />
+          <div>
+            <Select value={chainCfg.key} onValueChange={(v) => setChain(v as ChainKey)}>
+              <SelectTrigger className="w-[140px] h-[40px] max-[400px]:w-[120px] max-[370px]:w-[110px] max-[340px]:w-[100px] max-[325px]:w-[70px] bg-[#21325e]/50 border-[#21325e] text-white">
+                <SelectValue>{chainCfg.label}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-[#0e1a38] border border-[#21325e] text-white max-h-64 overflow-y-auto">
+                {chainOptions.map((k) => (
+                  <SelectItem
+                    key={k}
+                    value={k}
+                    className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                  >
+                    {CHAINS[k].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+            <ConnectWalletButton />
         </div>
       </header>
 

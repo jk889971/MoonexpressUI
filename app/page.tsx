@@ -22,7 +22,10 @@ function CountdownTimer({ endTime }: { endTime: number }) {
   const [timeLeft, setTimeLeft] = useState(0)
 
   useEffect(() => {
-    if (endTime <= 0) return
+    if (endTime <= 0) {
+      setTimeLeft(0)
+      return
+    }
     
     const calculateTimeLeft = () => {
       const now = Math.floor(Date.now() / 1000);
@@ -724,7 +727,7 @@ export default function Component() {
                             </div>
                             <div className="flex flex-col items-end max-[400px]:items-center max-[400px]:order-1">
                               <div className="text-sm text-white/60 mb-1">{statusLabel}</div>
-                              <CountdownTimer endTime={launch.endTime} />
+                              <CountdownTimer endTime={launch.status === "Migrated" ? 0 : launch.endTime} />
                             </div>
                           </div>
                         </CardContent>

@@ -21,7 +21,9 @@ export default function ConnectWalletButton() {
           <button
             className="
               text-white
-              w-[144px] h-[40px]
+              w-[140px] h-[40px]
+              max-[370px]:w-[120px]
+              max-[300px]:w-[100px]
               rounded-[12px]
               shadow-[inset_0px_2px_2px_0px_#FFFFFF66]
               font-bold text-[14px]
@@ -42,7 +44,7 @@ export default function ConnectWalletButton() {
           >
             {connected
               ? 
-                `${account.displayName.slice(0,6)}…${account.displayName.slice(-4)}`
+                `${account.displayName.slice(0,4)}…${account.displayName.slice(-4)}`
               : "Connect Wallet"}
           </button>
         )
