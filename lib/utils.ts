@@ -6,17 +6,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const safeBigInt = (value: unknown): bigint | undefined => {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value === "bigint") return value;
+export const safeBigInt = (value: unknown): bigint => {
   try {
+    if (typeof value === "bigint")         return value;
+    if (value === undefined || value === null) return 0n;
     return BigInt(value.toString());
   } catch {
-    return undefined;
+    return 0n;
   }
 };
 
-export const safeNumber = (value: unknown): number => {
-  const bi = safeBigInt(value);
-  return bi === undefined ? 0 : Number(bi);
-};
+export const safeNumber = (value: unknown): number =>
+  Number(safeBigInt(value));
