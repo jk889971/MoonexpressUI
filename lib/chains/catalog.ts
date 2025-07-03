@@ -58,7 +58,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     key: "bsc-testnet",
     label: "BSC Testnet",
     chain: bscTestnet,
-    factoryAddress: "0xF594d027E6c3d727ef4e5CB3058642d60Cb9371F",
+    factoryAddress: "0xF3EA0AcCC6C4DDe6EeBEd84ECE2ec86c87756c44",
     nativeSymbol: "tBNB",
     nativeDecimals: 18,
     nativeLogo: "/tokens/bnb.png",
