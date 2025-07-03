@@ -119,12 +119,6 @@ export default function Component() {
     }),
     { refreshInterval: 5000 }
   );
-  
-  useEffect(() => {
-    console.log('Static launches:', staticLaunches);
-    console.log('Dynamic data:', dynamicData);
-    if (dynamicError) console.error('Dynamic data error:', dynamicError);
-  }, [staticLaunches, dynamicData, dynamicError]);
 
   const launches = staticLaunchesArray.map((staticLaunch: any) => {
     const dynamic = dynamicData.find(
