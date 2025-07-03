@@ -30,8 +30,8 @@ export default function TokenDetailsCard({
 }) {
   const [CHAIN] = useChain()
 
-  const THRESHOLD_USD = CHAIN.key === "bsc-testnet" ? 20_000 : 2_500
-  const DEX_NAME      = CHAIN.key === "bsc-testnet" ? "ToonSwap" : "Uniswap"
+  const THRESHOLD_USD = CHAIN.key === "Avalanche" ? 8_000 : 2_500
+  const DEX_NAME      = CHAIN.key === "Avalanche" ? "LFJ" : "Uniswap"
 
   const { data: cap } = useReadContract({
     address: launchAddress,
@@ -282,7 +282,7 @@ export default function TokenDetailsCard({
             : `${remainingBNB.toLocaleString(undefined, {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 4,
-              })} ${CHAIN.nativeSymbol} worth of tokens still available.`}
+              })} ${CHAIN.nativeSymbol} left to bond.`}
           </p>
         </div>
       </CardContent>

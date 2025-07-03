@@ -1,7 +1,7 @@
 // lib/chains/catalog.ts
 import { Chain, defineChain } from "viem"
 
-export type ChainKey = "bsc-testnet" | "eth-sepolia"
+export type ChainKey = "Avalanche" | "eth-sepolia"
 
 export interface ChainConfig {
   key:            ChainKey
@@ -21,20 +21,20 @@ export interface ChainConfig {
   envRpc?:        string
 }
 
-/* ---------- BSC Testnet ---------- */
-const bscTestnet = defineChain({
-  id: 97,
-  name: "BNB Smart Chain Testnet",
-  network: "bsc-testnet",
-  nativeCurrency: { name: "tBNB", symbol: "tBNB", decimals: 18 },
+/* ---------- AVALANCHE ---------- */
+const avalanche = defineChain({
+  id: 43114,
+  name: "Avalanche",
+  network: "Avalanche",
+  nativeCurrency: { name: "Avalanche", symbol: "AVAX", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://data-seed-prebsc-1-s1.bnbchain.org:8545"] },
-    public:  { http: ["https://data-seed-prebsc-1-s1.bnbchain.org:8545"] },
+    default: { http: ["https://api.avax.network/ext/bc/C/rpc"] },
+    public:  { http: ["https://api.avax.network/ext/bc/C/rpc"] },
   },
   blockExplorers: {
-    default:{ name: "BscScan", url: "https://testnet.bscscan.com" },
+    default:{ name: "SnowScan", url: "https://snowscan.xyz" },
   },
-  testnet: true,
+  testnet: false,
 })
 
 /* ---------- Ethereum Sepolia ---------- */
@@ -54,26 +54,26 @@ const ethSepolia = defineChain({
 })
 
 export const CHAINS: Record<ChainKey, ChainConfig> = {
-  "bsc-testnet": {
-    key: "bsc-testnet",
-    label: "BSC Testnet",
-    chain: bscTestnet,
-    factoryAddress: "0xF3EA0AcCC6C4DDe6EeBEd84ECE2ec86c87756c44",
-    nativeSymbol: "tBNB",
+  "Avalanche": {
+    key: "Avalanche",
+    label: "Avalanche",
+    chain: avalanche,
+    factoryAddress: "0xc9998c3322ce529d4C150Fe835F7CeD2BAf74e16",
+    nativeSymbol: "AVAX",
     nativeDecimals: 18,
-    nativeLogo: "/tokens/bnb.png",
+    nativeLogo: "/tokens/avalanche.png",
     rpcUrls: [
-      "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
-      "https://bsc-testnet.public.blastapi.io",
-      "https://bsc-testnet.drpc.org",
+      "https://api.avax.network/ext/bc/C/rpc",
+      "https://rpc.ankr.com/avalanche",
+      "https://avalanche-c-chain-rpc.publicnode.com",
     ],
-    explorer: "https://testnet.bscscan.com",
+    explorer: "https://snowscan.xyz",
     faucets: [
-      "https://testnet.binance.org/faucet-smart",
-      "https://faucet.quicknode.com/bnb-testnet",
+      "https://faucet.quicknode.com/avalanche/fuji",
+      "https://core.app/tools/testnet-faucet",
     ],
     divisors: { priceUsd: 1e8, marketCapUsd: 1e26 },
-    envRpc: process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL,
+    envRpc: process.env.NEXT_PUBLIC_AVALANCHE_RPC_URL,
   },
 
   "eth-sepolia": {
