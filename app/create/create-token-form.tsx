@@ -82,6 +82,17 @@ export default function CreateTokenForm() {
 
   const [selectedAmountButton, setSelectedAmountButton] = useState<string | null>(null)
 
+  const typeChosen     = refundable !== null
+  const receiveChosen  = claimLP   !== null
+
+  const durPlaceholder = !typeChosen
+    ? 'Duration'
+    : refundable
+      ? 'Refund After'
+      : 'Sells Locked For'
+
+  const dayOpts = [1, 2, 3, 4, 5, 6, 7]
+
   async function getLogsWithRetry(opts: {
     address:   string
     fromBlock: number | bigint
@@ -232,8 +243,12 @@ export default function CreateTokenForm() {
     writeContract(sim.request)
   }
 
-
-  const durationSec = durationMin ? BigInt(durationMin * 60) : undefined
+  const durationSec =
+   durationMin === null
+     ? undefined
+     : durationMin === -1
+       ? 1n
+       : BigInt(durationMin * 60)
 
   const { data: sim, error: simError } = useSimulateContract({
     address: CHAIN.factoryAddress,    
@@ -569,7 +584,11 @@ export default function CreateTokenForm() {
               </div>
 
               <div className="flex flex-col gap-4 mt-4">
-                <Select onValueChange={(val)=>setRefundable(val==='refundable')}>
+                <Select onValueChange={(val) => {
+                  setRefundable(val === 'refundable')
+                  setClaimLP(null)
+                  setDurationMin(null)
+                  }}>
                   <SelectTrigger
                     className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
                   >
@@ -585,7 +604,7 @@ export default function CreateTokenForm() {
                   </SelectContent>
                 </Select>
 
-                <Select onValueChange={(val)=>setClaimLP(val==='lps')}>
+                <Select disabled={!typeChosen} onValueChange={(val)=>setClaimLP(val==='lps')}>
                   <SelectTrigger
                     className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
                   >
@@ -601,14 +620,22 @@ export default function CreateTokenForm() {
                   </SelectContent>
                 </Select>
 
-                <Select onValueChange={(val)=>setDurationMin(Number(val))}>
+                <Select disabled={!(typeChosen && receiveChosen)} onValueChange={(val)=>setDurationMin(Number(val))}>
                   <SelectTrigger
                     className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
                   >
-                    <SelectValue placeholder="Duration" />
+                    <SelectValue placeholder={durPlaceholder} />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0e1a38] rounded-xl border-0 text-white">
-                    {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+                    {!refundable && typeChosen && (
+                        <SelectItem
+                          value="-1"
+                          className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                        >
+                          No Lock
+                        </SelectItem>
+                      )}
+                      {dayOpts.map((d) => {
                       const minutes = d * 1_440
                       return (
                         <SelectItem
