@@ -17,5 +17,5 @@ jobs:
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
         run: |
-          curl -fsSL "$SITE_URL/api/finalise-pending" \
-            || echo "::warning ::Endpoint call failed"
+          curl -fsSL "$SITE_URL/api/finalise-pending?chain=Avalanche" || echo "::warning ::Endpoint call failed"
+          curl -fsSL "$SITE_URL/api/finalise-pending?chain=eth-sepolia" || echo "::warning ::Endpoint call failed"
