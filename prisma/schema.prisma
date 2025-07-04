@@ -16,6 +16,7 @@ model Launch {
   telegramUrl   String?   @db.VarChar(255)
   websiteUrl    String?   @db.VarChar(255)
   deployBlock   Int       @default(0)
+  closed        Boolean   @default(false)
   createdAt     DateTime  @default(now())
   comments      Comment[]
   trades        Trade[]

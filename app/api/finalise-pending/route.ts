@@ -34,8 +34,7 @@ export async function GET(req: Request) {
       const blk = await client.getBlock({ blockHash: rcpt.blockHash })
       const ts = Number(blk.timestamp)
 
-      let bnb = 0n,
-        tok = 0n
+      let bnb = 0n, tok = 0n
 
       for (const log of rcpt.logs) {
         try {
@@ -72,6 +71,35 @@ export async function GET(req: Request) {
           }),
         },
       )
+    } catch {}
+  }
+
+  const openLaunches = await prisma.launch.findMany({
+    where: { chainKey, closed: false },
+    select: { launchAddress: true },
+  })
+
+  for (const { launchAddress } of openLaunches) {
+    try {
+      const [finalized, drainMode] = await Promise.all([
+        client.readContract({
+          address: launchAddress as `0x${string}`,
+          abi: launchAbi,
+          functionName: "finalized",
+        }),
+        client.readContract({
+          address: launchAddress as `0x${string}`,
+          abi: launchAbi,
+          functionName: "drainMode",
+        }),
+      ])
+
+      if (finalized || drainMode) {
+        await prisma.launch.update({
+          where: { chainKey_launchAddress: { chainKey, launchAddress } },
+          data: { closed: true },
+        })
+      }
     } catch {}
   }
 

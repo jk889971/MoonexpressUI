@@ -10,10 +10,12 @@ export default function TokenChart({
   launchAddress,
   deployBlock = 0n,
   symbol,
+  closed = false,
 }: {
   launchAddress: `0x${string}`;
   deployBlock?: bigint;
   symbol: string;
+  closed?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef    = useRef<any>(null);
@@ -23,13 +25,13 @@ export default function TokenChart({
   const [chainCfg] = useChain();
 
   const priceFeed = useMemo(
-    () => makePriceFeed(launchAddress, deployBlock, symbol, chainCfg),
-    [launchAddress, deployBlock, symbol, chainCfg],
+    () => makePriceFeed(launchAddress, deployBlock, symbol, chainCfg, closed),
+    [launchAddress, deployBlock, symbol, chainCfg, closed],
   );
 
   const marketcapFeed = useMemo(
-    () => makeMarketcapFeed(launchAddress, deployBlock, symbol, chainCfg),
-    [launchAddress, deployBlock, symbol, chainCfg],
+    () => makeMarketcapFeed(launchAddress, deployBlock, symbol, chainCfg, closed),
+    [launchAddress, deployBlock, symbol, chainCfg, closed],
   );
 
   const widgetSym = chartType === 'price' ? `${symbol}/USD` : `${symbol}/MC`;
