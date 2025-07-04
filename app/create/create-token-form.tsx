@@ -608,11 +608,18 @@ export default function CreateTokenForm() {
                     <SelectValue placeholder="Duration" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0e1a38] rounded-xl border-0 text-white">
-                    {["1","2","5","7","10","15","120"].map((m) => (
-                      <SelectItem key={m} className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white" value={m}>
-                        {m} minutes
-                      </SelectItem>
-                    ))}
+                    {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+                      const minutes = d * 1_440
+                      return (
+                        <SelectItem
+                          key={d}
+                          value={String(minutes)}
+                          className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                        >
+                          {d} day{d > 1 ? "s" : ""}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>

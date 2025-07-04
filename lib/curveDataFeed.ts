@@ -174,10 +174,6 @@ function createFeed(
     const fromMs = from * 1000;
     const toMs   = to   * 1000;
     const slice = bars.filter(b => b.time < toMs);
-      console.log('TV wants',
-              new Date(fromMs).toISOString(), '→', new Date(toMs).toISOString(),
-              '| bars in memory', bars.length,
-              '| bars we send',   slice.length)
       onHist(slice, { noData: slice.length === 0 });
     },
 
