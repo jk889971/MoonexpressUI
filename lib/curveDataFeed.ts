@@ -181,7 +181,10 @@ function createFeed(
     },
 
     subscribeBars(_s: any, _r: string, onRT: (b: Bar) => void, uid: string) {
-      timers[uid] = startPolling(onRT) as unknown as NodeJS.Timeout
+      const timer = startPolling(onRT)
+      if (timer) {
+        timers[uid] = timer
+      }
     },
 
     unsubscribeBars(uid: string) {
