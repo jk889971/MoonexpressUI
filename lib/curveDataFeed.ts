@@ -169,9 +169,13 @@ function createFeed(
       onHist: any
     ) {
       await loadHistory();
-      const fromMs = from * 1000,
-        toMs = to * 1000;
-      const slice = bars.filter(b => b.time >= fromMs && b.time <= toMs);
+      const bucketSize =
+      (parseInt(_r, 10) || 1) * 60_000;
+    const fromMs = from * 1000;
+    const toMs   = to   * 1000;
+    const slice = bars.filter(
+      b => b.time >= fromMs - bucketSize && b.time < toMs
+    );
       console.log('TV wants',
               new Date(fromMs).toISOString(), '→', new Date(toMs).toISOString(),
               '| bars in memory', bars.length,
