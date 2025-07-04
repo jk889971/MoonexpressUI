@@ -49,7 +49,6 @@ export default function MoonexpressTradingInterface({
   );
 
   const description = meta?.description ?? "";
-  const launchClosed = Boolean(meta?.closed)
 
   const qc = useQueryClient()
   const { data: block } = useBlockNumber({ chainId: CHAIN.chain.id, watch: true })
@@ -217,7 +216,7 @@ export default function MoonexpressTradingInterface({
                 </div>
 
                 <div className="h-[32rem] bg-[#0e1a38] rounded-lg p-4 relative overflow-hidden max-[370px]:p-0 max-[370px]:-mx-3 max-[370px]:-mb-6">
-                  <TokenChart launchAddress={launchAddress} deployBlock={deployBlock} symbol={symbol} closed={launchClosed} />
+                  <TokenChart launchAddress={launchAddress} deployBlock={deployBlock} symbol={symbol} />
                 </div>
               </CardContent>
             </Card>

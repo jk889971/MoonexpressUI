@@ -1,19 +1,19 @@
 // lib/curveDataFeed.ts
-import { createPublicClient, http } from 'viem'
-import launchAbi from '@/lib/abis/CurveLaunch.json'
-import type { ChainConfig } from '@/lib/chains/catalog'
+import { createPublicClient, http } from 'viem';
+import launchAbi from '@/lib/abis/CurveLaunch.json';
+import type { ChainConfig } from '@/lib/chains/catalog';
 
 type Bar = {
-  time: number
-  open: number
-  high: number
-  low: number
-  close: number
-  volume: number
-}
+  time:   number;  
+  open:   number;
+  high:   number;
+  low:    number;
+  close:  number;
+  volume: number;
+};
 
-const MIN = 60_000
-const bucket = (ms: number) => ms - (ms % MIN)
+const MIN   = 60_000;                      
+const bucket = (ms: number) => ms - (ms % MIN);
 
 async function fetchHistory(
   launch: string,
@@ -22,119 +22,109 @@ async function fetchHistory(
   toSec: number,
   chainKey: string
 ): Promise<{ timestamp: number; raw_value: number }[]> {
-  const url = `/api/chart-history?launch=${launch}&kind=${kind}&from=${fromSec}&to=${toSec}&chain=${chainKey}`
-  return fetch(url).then(r => r.json())
+  const url =
+    `/api/chart-history?launch=${launch}&kind=${kind}&from=${fromSec}&to=${toSec}&chain=${chainKey}`;
+  return fetch(url).then(r => r.json());
 }
 
 function createFeed(
   launch: `0x${string}`,
   readFn: 'getCurrentPriceUsd' | 'getLiveMarketCapUsd',
   symbolCfg: {
-    name: string
-    ticker: string
-    description: string
-    pricescale: number
+    name:        string;
+    ticker:      string;
+    description: string;
+    pricescale:  number;
   },
-  cfg: ChainConfig,
-  closedInitially = false
+  cfg: ChainConfig
 ) {
-  const rpcUrl = (cfg.envRpc && cfg.envRpc.length ? cfg.envRpc : undefined) ?? cfg.rpcUrls[0]
+  const rpcUrl = (cfg.envRpc && cfg.envRpc.length ? cfg.envRpc : undefined) ?? cfg.rpcUrls[0];
 
   const client = createPublicClient({
-    chain: cfg.chain,
+    chain:     cfg.chain,
     transport: http(rpcUrl),
-  })
+  });
 
-  const isMarketcap = readFn === 'getLiveMarketCapUsd'
-  const divisor = isMarketcap ? 1e26 : 1e8
+  const isMarketcap = readFn === 'getLiveMarketCapUsd';
+  const divisor     = isMarketcap ? 1e26 : 1e8;   
 
   const readValue = async () => {
     const v = await client.readContract({
       address: launch,
       abi: launchAbi,
       functionName: readFn,
-    })
-    return Number(v) / divisor
-  }
+    });
+    return Number(v) / divisor;
+  };
 
-  const bars: Bar[] = []
-  let closed = closedInitially
+  const bars: Bar[] = [];
 
   async function loadHistory() {
-    if (bars.length) return
-    const rows = await fetchHistory(
+    if (bars.length) return;              
+
+    const fromSec = 0;
+    const toSec   = Math.floor(Date.now() / 1_000);
+    const rows    = await fetchHistory(
       launch,
       isMarketcap ? 'mcap' : 'price',
-      0,
-      Math.floor(Date.now() / 1_000),
+      fromSec,
+      toSec,
       cfg.key
-    )
+    );
 
     for (const { timestamp, raw_value } of rows) {
-      const t = bucket(timestamp * 1_000)
-      const val = raw_value
-      const last = bars[bars.length - 1]
+      const t   = bucket(timestamp * 1_000);  
+      const val = raw_value;
+      const last = bars[bars.length - 1];
 
       if (!last || t > last.time) {
-        bars.push({ time: t, open: last?.close ?? val, high: val, low: val, close: val, volume: 0 })
+        bars.push({
+          time: t,
+          open: last?.close ?? val,
+          high: val,
+          low : val,
+          close: val,
+          volume: 0,
+        });
       } else {
-        last.high = Math.max(last.high, val)
-        last.low = Math.min(last.low, val)
-        last.close = val
+        last.high  = Math.max(last.high, val);
+        last.low   = Math.min(last.low,  val);
+        last.close = val;
       }
     }
 
     if (!bars.length) {
       bars.push({
         time: bucket(Date.now()),
-        open: 0,
-        high: 0,
-        low: 0,
-        close: 0,
-        volume: 0,
-      })
+        open: 0, high: 0, low: 0, close: 0, volume: 0,
+      });
     }
   }
 
-  const timers: Record<string, NodeJS.Timeout> = {}
-
-  async function isTerminal() {
-    const [fin, dm] = await Promise.all([
-      client.readContract({ address: launch, abi: launchAbi, functionName: 'finalized' }),
-      client.readContract({ address: launch, abi: launchAbi, functionName: 'drainMode' }),
-    ])
-    return Boolean(fin || dm)
-  }
+  const timers: Record<string, NodeJS.Timeout> = {};
 
   function startPolling(cb: (b: Bar) => void) {
-    if (closed) return undefined
-
-    const id = setInterval(async () => {
-      if (closed) {
-        clearInterval(id)
-        return
-      }
-
-      const val = await readValue()
-      const stamp = bucket(Date.now())
-      const last = bars[bars.length - 1]
+    return setInterval(async () => {
+      const val   = await readValue();
+      const stamp = bucket(Date.now());
+      const last  = bars[bars.length - 1];
 
       if (!last || stamp > last.time) {
-        bars.push({ time: stamp, open: last?.close ?? val, high: val, low: val, close: val, volume: 0 })
+        bars.push({
+          time: stamp,
+          open: last?.close ?? val,
+          high: val,
+          low : val,
+          close: val,
+          volume: 0,
+        });
       } else {
-        last.high = Math.max(last.high, val)
-        last.low = Math.min(last.low, val)
-        last.close = val
+        last.high  = Math.max(last.high, val);
+        last.low   = Math.min(last.low,  val);
+        last.close = val;
       }
-      cb(bars[bars.length - 1])
-
-      if (!closed && (await isTerminal())) {
-        closed = true
-        clearInterval(id)
-      }
-    }, 1_000)
-
-    return id
+      cb(bars[bars.length - 1]);
+    }, 1_000);
   }
 
   return {
@@ -147,7 +137,7 @@ function createFeed(
             history_depth: '7D',
           }),
         0
-      )
+      );
     },
 
     resolveSymbol(_sym: string, onResolve: any) {
@@ -169,69 +159,71 @@ function createFeed(
             data_status: 'streaming',
           }),
         0
-      )
+      );
     },
 
-    async getBars(_s: any, _r: string, { from, to }: { from: number; to: number }, onHist: any) {
-      await loadHistory()
+    async getBars(
+      _s: any,
+      _r: string,
+      { from, to }: { from: number; to: number },
+      onHist: any
+    ) {
+      await loadHistory();
       const fromMs = from * 1000,
-        toMs = to * 1000
-      const slice = bars.filter(b => b.time >= fromMs && b.time <= toMs)
-      onHist(slice, { noData: slice.length === 0 })
+        toMs = to * 1000;
+      const slice = bars.filter(b => b.time >= fromMs && b.time <= toMs);
+      console.log('TV wants',
+              new Date(fromMs).toISOString(), '→', new Date(toMs).toISOString(),
+              '| bars in memory', bars.length,
+              '| bars we send',   slice.length)
+      onHist(slice, { noData: slice.length === 0 });
     },
 
     subscribeBars(_s: any, _r: string, onRT: (b: Bar) => void, uid: string) {
-      const timer = startPolling(onRT)
-      if (timer) {
-        timers[uid] = timer
-      }
+      timers[uid] = startPolling(onRT);
     },
 
     unsubscribeBars(uid: string) {
-      clearInterval(timers[uid])
-      delete timers[uid]
+      clearInterval(timers[uid]);
+      delete timers[uid];
     },
-  }
+  };
 }
 
 export function makePriceFeed(
-  launch: `0x${string}`,
+  launch:       `0x${string}`,
   _deployBlock: bigint = 0n,
-  symbol: string,
-  cfg: ChainConfig,
-  closed = false
+  symbol:       string,
+  cfg:          ChainConfig
 ) {
   return createFeed(
     launch,
     'getCurrentPriceUsd',
     {
-      name: `${symbol}/USD`,
-      ticker: `${symbol}/USD`,
+      name:        `${symbol}/USD`,
+      ticker:      `${symbol}/USD`,
       description: `${symbol}/USD (Bonding Curve)`,
-      pricescale: 100_000_000,
+      pricescale:  100_000_000,
     },
-    cfg,
-    closed
-  )
+    cfg
+  );
 }
 
 export function makeMarketcapFeed(
-  launch: `0x${string}`,
+  launch:       `0x${string}`,
   _deployBlock: bigint = 0n,
-  symbol: string,
-  cfg: ChainConfig,
-  closed = false
+  symbol:       string,
+  cfg:          ChainConfig
 ) {
   return createFeed(
     launch,
     'getLiveMarketCapUsd',
     {
-      name: `${symbol}/MC`,
-      ticker: `${symbol}/MC`,
+      name:        `${symbol}/MC`,
+      ticker:      `${symbol}/MC`,
       description: `${symbol} Market Cap (USD)`,
-      pricescale: 100,
+      pricescale:  100,
     },
-    cfg,
-    closed
-  )
+    cfg
+  );
 }
