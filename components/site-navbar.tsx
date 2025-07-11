@@ -104,12 +104,12 @@ export default function SiteNavbar() {
             <Select value={chainCfg.key} onValueChange={(v) => setChain(v as ChainKey)}>
               <SelectTrigger className="w-[140px] h-[40px] max-[400px]:w-[120px] max-[370px]:w-[110px] max-[340px]:w-[100px] max-[325px]:w-[70px] bg-[#21325e]/50 border-[#21325e] text-white">
                 <SelectValue asChild>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
                   <img
                     src={chainCfg.nativeLogo}
                     className="w-5 h-5 rounded-full"
                   />
-                  <span>{chainCfg.label}</span>
+                  <span className="truncate">{chainCfg.label}</span>
                 </div>
               </SelectValue>
               </SelectTrigger>
