@@ -80,7 +80,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     key: "Story",
     label: "Story",
     chain: story,
-    factoryAddress: "0x3791e3ED0F311462912eA3d31A104dFd1d08C4De",
+    factoryAddress: "0xd05D1D6F79e670D98D45743341b5506BaA443735",
     nativeSymbol: "IP",
     nativeDecimals: 18,
     nativeLogo: "/tokens/ip.png",
