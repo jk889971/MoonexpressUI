@@ -1,7 +1,7 @@
 // lib/chains/catalog.ts
 import { Chain, defineChain } from "viem"
 
-export type ChainKey = "Avalanche" | "eth-sepolia"
+export type ChainKey = "Avalanche" | "Story"
 
 export interface ChainConfig {
   key:            ChainKey
@@ -37,20 +37,20 @@ const avalanche = defineChain({
   testnet: false,
 })
 
-/* ---------- Ethereum Sepolia ---------- */
-const ethSepolia = defineChain({
-  id: 11155111,
-  name: "Ethereum Sepolia",
-  network: "eth-sepolia",
-  nativeCurrency: { name: "Sepolia Ether", symbol: "SEP", decimals: 18 },
+/* ---------- STORY ---------- */
+const story = defineChain({
+  id: 1514,
+  name: "Story",
+  network: "Story",
+  nativeCurrency: { name: "Story", symbol: "IP", decimals: 18 },
   rpcUrls: {
-    default:{ http:[ "https://ethereum-sepolia.publicnode.com" ] },
-    public: { http:[ "https://ethereum-sepolia.publicnode.com" ] },
+    default:{ http:[ "https://mainnet.storyrpc.io" ] },
+    public: { http:[ "https://mainnet.storyrpc.io" ] },
   },
   blockExplorers: {
-    default:{ name:"Etherscan", url:"https://sepolia.etherscan.io" },
+    default:{ name:"Storyscan", url:"https://storyscan.io" },
   },
-  testnet: true,
+  testnet: false,
 })
 
 export const CHAINS: Record<ChainKey, ChainConfig> = {
@@ -76,21 +76,21 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     envRpc: process.env.NEXT_PUBLIC_AVALANCHE_RPC_URL,
   },
 
-  "eth-sepolia": {
-    key: "eth-sepolia",
-    label: "Eth Sepolia",
-    chain: ethSepolia,
-    factoryAddress: "0x8977b99ad5A101df8424dE59E211A6b40579FE76",   
-    nativeSymbol: "SEP",
+  "Story": {
+    key: "Story",
+    label: "Story",
+    chain: story,
+    factoryAddress: "0x3791e3ED0F311462912eA3d31A104dFd1d08C4De",
+    nativeSymbol: "IP",
     nativeDecimals: 18,
-    nativeLogo: "/tokens/eth.png",
+    nativeLogo: "/tokens/ip.png",
     rpcUrls: [
-      "https://ethereum-sepolia.publicnode.com",
+      "https://mainnet.storyrpc.io",
     ],
-    explorer: "https://sepolia.etherscan.io",
-    faucets: [ "https://sepoliafaucet.com" ],
+    explorer: "https://storyscan.io",
+    faucets: [ "https://faucet.quicknode.com/story/testnet" ],
     divisors: { priceUsd: 1e8, marketCapUsd: 1e26 },
-    envRpc: process.env.NEXT_PUBLIC_ETH_SEPOLIA_RPC_URL,
+    envRpc: process.env.NEXT_PUBLIC_STORY_RPC_URL,
   },
 }
 
