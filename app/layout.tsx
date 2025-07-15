@@ -45,15 +45,15 @@ export default function RootLayout({
         <meta name="theme-color" content="#132043" />
       </head>
       <body className="min-h-screen bg-[#000025] text-white max-[1023px]:pb-16">
-        <ChainProvider>
-          <Providers>
+        <Providers>
+          <ChainProvider>
             <SiteNavbar />
 
             <main className="flex-1">{children}</main>
 
             <SiteFooter />
-          </Providers>
-        </ChainProvider>
+          </ChainProvider>
+        </Providers>
       </body>
     </html>
   );
