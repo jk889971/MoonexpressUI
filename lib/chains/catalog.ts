@@ -1,7 +1,7 @@
 // lib/chains/catalog.ts
 import { Chain, defineChain } from "viem"
 
-export type ChainKey = "Avalanche" | "Story" | "Soneium Testnet"
+export type ChainKey = "Avalanche" | "Story" | "Somnia Testnet"
 
 export interface ChainConfig {
   key:            ChainKey
@@ -56,18 +56,18 @@ const story = defineChain({
   testnet: false,
 })
 
-/* ---------- SONEIUM TESTNET ---------- */
-const soneium = defineChain({
-  id: 1946,
-  name: "Soneium Testnet",
-  network: "Soneium Testnet",
+/* ---------- SOMNIA TESTNET ---------- */
+const somnia = defineChain({
+  id: 50312,
+  name: "Somnia Testnet",
+  network: "Somnia Testnet",
   nativeCurrency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
   rpcUrls: {
-    default:{ http:[ "https://rpc.minato.soneium.org/" ] },
-    public: { http:[ "https://rpc.minato.soneium.org/" ] },
+    default:{ http:[ "https://vsf-rpc.somnia.network/" ] },
+    public: { http:[ "https://vsf-rpc.somnia.network/" ] },
   },
   blockExplorers: {
-    default:{ name:"BlockScout", url:"https://soneium-minato.blockscout.com/" },
+    default:{ name:"ShannonExplorer", url:"https://shannon-explorer.somnia.network/" },
   },
   testnet: true,
 })
@@ -118,24 +118,24 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     thresholdUsd: 10_000,
   },
 
-  "Soneium Testnet": {
-    key: "Soneium Testnet",
-    label: "Soneium Testnet",
-    chain: soneium,
-    factoryAddress: "0x899C6c8DD266d3167b979FcC1Fb4191234Ec200c",
+  "Somnia Testnet": {
+    key: "Somnia Testnet",
+    label: "Somnia Testnet",
+    chain: somnia,
+    factoryAddress: "0xb6d67069C3a49102F0675Af3F57Fc8070368E32c",
     nativeSymbol: "ETH",
     nativeDecimals: 18,
-    nativeLogo: "/tokens/soneium.png",
+    nativeLogo: "/tokens/somnia.png",
     tokenLogo: "/tokens/eth.png",
     rpcUrls: [
-      "https://rpc.minato.soneium.org/",
+      "https://vsf-rpc.somnia.network/",
     ],
-    explorer: "https://soneium-minato.blockscout.com/",
-    faucets: [ "https://www.alchemy.com/faucets/soneium-minato" ],
+    explorer: "https://shannon-explorer.somnia.network/",
+    faucets: [ "https://testnet.somnia.network/" ],
     divisors: { priceUsd: 1e8, marketCapUsd: 1e26 },
-    envRpc: process.env.NEXT_PUBLIC_SONEIUM_TESTNET_RPC_URL,
-    dexName: "KYO Finance",
-    thresholdUsd: 5,
+    envRpc: process.env.NEXT_PUBLIC_SOMNIA_TESTNET_RPC_URL,
+    dexName: "QuickSwap",
+    thresholdUsd: 1,
   },
 }
 

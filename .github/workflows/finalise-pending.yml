@@ -19,4 +19,4 @@ jobs:
         run: |
           curl -fsSL "$SITE_URL/api/finalise-pending?chain=Avalanche" || echo "::warning ::Endpoint call failed"
           curl -fsSL "$SITE_URL/api/finalise-pending?chain=Story" || echo "::warning ::Endpoint call failed"
-          curl -fsSL "$SITE_URL/api/finalise-pending?chain=Soneium Testnet" || echo "::warning ::Endpoint call failed"
+          curl -fsSL "$SITE_URL/api/finalise-pending?chain=Somnia Testnet" || echo "::warning ::Endpoint call failed"
