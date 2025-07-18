@@ -39,6 +39,7 @@ type Toast = {
 
 export default function CreateTokenForm() {
   const [CHAIN] = useChain()
+  const isSomnia = CHAIN.key === "Somnia Testnet"
   const router = useRouter()
   const rpc = useCustomRpc()
   const [tokenName, setTokenName] = useState<string>("")
@@ -83,7 +84,7 @@ export default function CreateTokenForm() {
   const [selectedAmountButton, setSelectedAmountButton] = useState<string | null>(null)
 
   const typeChosen     = refundable !== null
-  const receiveChosen  = claimLP   !== null
+  const receiveChosen  = isSomnia ? true : claimLP !== null
 
   const durPlaceholder = !typeChosen
     ? 'Duration'
@@ -115,6 +116,14 @@ export default function CreateTokenForm() {
   }
 
   const didIndexRef = useRef(false)
+
+  useEffect(() => {
+    if (isSomnia) {
+      setClaimLP(false)
+    } else {
+      setClaimLP(null)
+    }
+  }, [isSomnia])
 
   useEffect(() => {
     const onWindowDragOver = (e: DragEvent) => {
@@ -271,6 +280,10 @@ export default function CreateTokenForm() {
         refundable !== null && claimLP !== null && durationMin !== null,
     },
   })
+
+  console.log('--- simulate output ---')
+  console.log('sim:', sim)
+  console.log('sim error:', simError)
 
   const predictedToken  = sim?.result?.[0] as `0x${string}` | undefined
   const predictedLaunch = sim?.result?.[1] as `0x${string}` | undefined
@@ -604,11 +617,15 @@ export default function CreateTokenForm() {
                   </SelectContent>
                 </Select>
 
-                <Select disabled={!typeChosen} onValueChange={(val)=>setClaimLP(val==='lps')}>
+                <Select
+                  disabled={isSomnia || !typeChosen}
+                  value={isSomnia ? "tokens" : (claimLP === null ? undefined : (claimLP ? "lps" : "tokens"))}
+                  onValueChange={(val)=>{ if (!isSomnia) setClaimLP(val==='lps') }}
+                >
                   <SelectTrigger
                     className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
                   >
-                    <SelectValue placeholder="Receive" />
+                    <SelectValue placeholder={isSomnia ? "Tokens" : "Receive"} />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0e1a38] rounded-xl border-0 text-white">
                     <SelectItem className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white" value="tokens">
