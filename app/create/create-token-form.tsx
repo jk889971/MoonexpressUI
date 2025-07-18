@@ -766,8 +766,8 @@ export default function CreateTokenForm() {
                 <div className="flex justify-between items-end mb-1 max-[220px]:flex-col max-[220px]:items-center max-[220px]:gap-3">
                   <span className="text-white text-sm font-medium max-[220px]:order-2">Amount</span>
                   <div className="flex items-center gap-2 bg-[#21325e] rounded-lg px-3 py-1.5 max-[220px]:order-1">
-                    {CHAIN.nativeLogo ? (
-                      <img src={CHAIN.nativeLogo} className="w-5 h-5" />
+                    {CHAIN.tokenLogo ? (
+                      <img src={CHAIN.tokenLogo} className="w-5 h-5" />
                     ) : (
                       <div className="w-5 h-5 rounded-full bg-[#19c0f4]" />
                     )}

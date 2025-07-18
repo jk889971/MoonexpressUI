@@ -11,6 +11,7 @@ export interface ChainConfig {
   nativeSymbol:   string
   nativeDecimals: number
   nativeLogo?:    string
+  tokenLogo?:     string
   rpcUrls:        readonly string[]
   explorer:       string
   faucets?:       readonly string[]
@@ -80,6 +81,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     nativeSymbol: "AVAX",
     nativeDecimals: 18,
     nativeLogo: "/tokens/avalanche.png",
+    tokenLogo: "/tokens/avalanche.png",
     rpcUrls: [
       "https://api.avax.network/ext/bc/C/rpc",
       "https://rpc.ankr.com/avalanche",
@@ -104,6 +106,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     nativeSymbol: "IP",
     nativeDecimals: 18,
     nativeLogo: "/tokens/ip.png",
+    tokenLogo: "/tokens/ip.png",
     rpcUrls: [
       "https://mainnet.storyrpc.io",
     ],
@@ -123,6 +126,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     nativeSymbol: "ETH",
     nativeDecimals: 18,
     nativeLogo: "/tokens/soneium.png",
+    tokenLogo: "/tokens/eth.png",
     rpcUrls: [
       "https://rpc.minato.soneium.org/",
     ],

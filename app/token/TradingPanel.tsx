@@ -444,8 +444,8 @@ export default function TradingPanel({
               </>
             ) : (
               <>
-                {CHAIN.nativeLogo ? (
-                                      <img src={CHAIN.nativeLogo} className="w-6 h-6" />
+                {CHAIN.tokenLogo ? (
+                                      <img src={CHAIN.tokenLogo} className="w-6 h-6" />
                                     ) : (
                                       <div className="w-6 h-6 rounded-full bg-[#19c0f4]" />
                                     )}
