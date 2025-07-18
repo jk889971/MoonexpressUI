@@ -599,7 +599,7 @@ export default function CreateTokenForm() {
               <div className="flex flex-col gap-4 mt-4">
                 <Select onValueChange={(val) => {
                   setRefundable(val === 'refundable')
-                  setClaimLP(null)
+                  if (!isSomnia) setClaimLP(null)
                   setDurationMin(null)
                   }}>
                   <SelectTrigger
