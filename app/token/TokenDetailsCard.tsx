@@ -30,8 +30,7 @@ export default function TokenDetailsCard({
 }) {
   const [CHAIN] = useChain()
 
-  const THRESHOLD_USD = CHAIN.key === "Avalanche" ? 8_000 : 10_000
-  const DEX_NAME      = CHAIN.key === "Avalanche" ? "LFJ" : "PiperX"
+  const { thresholdUsd: THRESHOLD_USD, dexName: DEX_NAME } = CHAIN
 
   const { data: cap } = useReadContract({
     address: launchAddress,

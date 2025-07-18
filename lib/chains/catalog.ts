@@ -1,7 +1,7 @@
 // lib/chains/catalog.ts
 import { Chain, defineChain } from "viem"
 
-export type ChainKey = "Avalanche" | "Story"
+export type ChainKey = "Avalanche" | "Story" | "Soneium Testnet"
 
 export interface ChainConfig {
   key:            ChainKey
@@ -19,6 +19,8 @@ export interface ChainConfig {
     marketCapUsd:number   
   }
   envRpc?:        string
+  dexName:        string
+  thresholdUsd:   number
 }
 
 /* ---------- AVALANCHE ---------- */
@@ -53,6 +55,22 @@ const story = defineChain({
   testnet: false,
 })
 
+/* ---------- SONEIUM TESTNET ---------- */
+const soneium = defineChain({
+  id: 1946,
+  name: "Soneium Testnet",
+  network: "Soneium Testnet",
+  nativeCurrency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+  rpcUrls: {
+    default:{ http:[ "https://rpc.minato.soneium.org/" ] },
+    public: { http:[ "https://rpc.minato.soneium.org/" ] },
+  },
+  blockExplorers: {
+    default:{ name:"BlockScout", url:"https://soneium-minato.blockscout.com/" },
+  },
+  testnet: true,
+})
+
 export const CHAINS: Record<ChainKey, ChainConfig> = {
   "Avalanche": {
     key: "Avalanche",
@@ -74,6 +92,8 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     ],
     divisors: { priceUsd: 1e8, marketCapUsd: 1e26 },
     envRpc: process.env.NEXT_PUBLIC_AVALANCHE_RPC_URL,
+    dexName: "LFJ",
+    thresholdUsd: 8_000,
   },
 
   "Story": {
@@ -91,6 +111,27 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     faucets: [ "https://faucet.quicknode.com/story/testnet" ],
     divisors: { priceUsd: 1e8, marketCapUsd: 1e26 },
     envRpc: process.env.NEXT_PUBLIC_STORY_RPC_URL,
+    dexName: "PiperX",
+    thresholdUsd: 10_000,
+  },
+
+  "Soneium Testnet": {
+    key: "Soneium Testnet",
+    label: "Soneium Testnet",
+    chain: soneium,
+    factoryAddress: "0x899C6c8DD266d3167b979FcC1Fb4191234Ec200c",
+    nativeSymbol: "ETH",
+    nativeDecimals: 18,
+    nativeLogo: "/tokens/soneium.png",
+    rpcUrls: [
+      "https://rpc.minato.soneium.org/",
+    ],
+    explorer: "https://soneium-minato.blockscout.com/",
+    faucets: [ "https://www.alchemy.com/faucets/soneium-minato" ],
+    divisors: { priceUsd: 1e8, marketCapUsd: 1e26 },
+    envRpc: process.env.NEXT_PUBLIC_SONEIUM_TESTNET_RPC_URL,
+    dexName: "KYO Finance",
+    thresholdUsd: 5,
   },
 }
 
