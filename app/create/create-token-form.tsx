@@ -260,7 +260,7 @@ export default function CreateTokenForm() {
        : BigInt(durationMin * 60)
 
   const { data: sim, error: simError } = useSimulateContract({
-    address: CHAIN.factoryAddress,    
+    address: CHAIN.factoryAddress,
     abi: factoryAbi,
     functionName: "createLaunch",
     args: [
@@ -268,18 +268,29 @@ export default function CreateTokenForm() {
       symbol,
       imageURI,
       refundable ?? false,
-      claimLP    ?? false,
+      claimLP ?? false,
       creatorPreBuys,
       durationSec ?? 0n,
     ],
     value: creatorPreBuys ? parseEther(preBuyAmount || "0") : undefined,
-    chainId: CHAIN.chain.id,     
+    chainId: CHAIN.chain.id,
+
     query: {
       enabled:
-        !!tokenName && !!symbol && !!selectedFile && !!imageURI &&
-        refundable !== null && claimLP !== null && durationMin !== null,
+        !!tokenName &&
+        !!symbol &&
+        !!selectedFile &&
+        !!imageURI &&
+        refundable !== null &&
+        claimLP !== null &&
+        durationMin !== null,
     },
-  })
+
+    onError: (err) => {
+      console.error("simulate‑revert:", err);
+      addToast(err.message);
+    },
+  });
 
   console.log('--- simulate output ---')
   console.log('sim:', sim)
