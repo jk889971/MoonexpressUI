@@ -61,7 +61,7 @@ const somnia = defineChain({
   id: 50312,
   name: "Somnia Testnet",
   network: "Somnia Testnet",
-  nativeCurrency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+  nativeCurrency: { name: "Somnia", symbol: "STT", decimals: 18 },
   rpcUrls: {
     default:{ http:[ "https://rpc.ankr.com/somnia_testnet/bcccff8a817714dc620a30c7b64bf39e51f025a0f73e8eb831daa16a1099f5df" ] },
     public: { http:[ "https://rpc.ankr.com/somnia_testnet/bcccff8a817714dc620a30c7b64bf39e51f025a0f73e8eb831daa16a1099f5df" ] },
@@ -126,7 +126,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     nativeSymbol: "ETH",
     nativeDecimals: 18,
     nativeLogo: "/tokens/somnia.png",
-    tokenLogo: "/tokens/eth.png",
+    tokenLogo: "/tokens/somnia.png",
     rpcUrls: [
       "https://rpc.ankr.com/somnia_testnet/bcccff8a817714dc620a30c7b64bf39e51f025a0f73e8eb831daa16a1099f5df",
     ],
