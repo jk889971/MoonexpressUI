@@ -63,8 +63,8 @@ const somnia = defineChain({
   network: "Somnia Testnet",
   nativeCurrency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
   rpcUrls: {
-    default:{ http:[ "https://vsf-rpc.somnia.network/" ] },
-    public: { http:[ "https://vsf-rpc.somnia.network/" ] },
+    default:{ http:[ "https://rpc.ankr.com/somnia_testnet/bcccff8a817714dc620a30c7b64bf39e51f025a0f73e8eb831daa16a1099f5df" ] },
+    public: { http:[ "https://rpc.ankr.com/somnia_testnet/bcccff8a817714dc620a30c7b64bf39e51f025a0f73e8eb831daa16a1099f5df" ] },
   },
   blockExplorers: {
     default:{ name:"ShannonExplorer", url:"https://shannon-explorer.somnia.network/" },
@@ -128,7 +128,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     nativeLogo: "/tokens/somnia.png",
     tokenLogo: "/tokens/eth.png",
     rpcUrls: [
-      "https://vsf-rpc.somnia.network/",
+      "https://rpc.ankr.com/somnia_testnet/bcccff8a817714dc620a30c7b64bf39e51f025a0f73e8eb831daa16a1099f5df",
     ],
     explorer: "https://shannon-explorer.somnia.network/",
     faucets: [ "https://testnet.somnia.network/" ],

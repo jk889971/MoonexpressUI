@@ -39,7 +39,6 @@ type Toast = {
 
 export default function CreateTokenForm() {
   const [CHAIN] = useChain()
-  const isSomnia = CHAIN.key === "Somnia Testnet"
   const router = useRouter()
   const rpc = useCustomRpc()
   const [tokenName, setTokenName] = useState<string>("")
@@ -61,6 +60,12 @@ export default function CreateTokenForm() {
 
   const [showModal, setShowModal] = useState<boolean>(false)
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false)
+
+  const FORCE_TOKENS_CHAINS = new Set<string>([
+    "Somnia Testnet",
+  ]);
+
+  const forceTokens = FORCE_TOKENS_CHAINS.has(CHAIN.key);
 
   const [tokensBoughtTopic] = useMemo(
     () => encodeEventTopics({ abi: launchAbi, eventName: 'TokensBought' }),
@@ -84,7 +89,7 @@ export default function CreateTokenForm() {
   const [selectedAmountButton, setSelectedAmountButton] = useState<string | null>(null)
 
   const typeChosen     = refundable !== null
-  const receiveChosen  = isSomnia ? true : claimLP !== null
+  const receiveChosen  = claimLP   !== null
 
   const durPlaceholder = !typeChosen
     ? 'Duration'
@@ -118,12 +123,12 @@ export default function CreateTokenForm() {
   const didIndexRef = useRef(false)
 
   useEffect(() => {
-    if (isSomnia) {
-      setClaimLP(false)
+    if (forceTokens) {
+      setClaimLP(false);
     } else {
-      setClaimLP(null)
+      setClaimLP(null);
     }
-  }, [isSomnia])
+  }, [forceTokens]);
 
   useEffect(() => {
     const onWindowDragOver = (e: DragEvent) => {
@@ -260,7 +265,7 @@ export default function CreateTokenForm() {
        : BigInt(durationMin * 60)
 
   const { data: sim, error: simError } = useSimulateContract({
-    address: CHAIN.factoryAddress,
+    address: CHAIN.factoryAddress,    
     abi: factoryAbi,
     functionName: "createLaunch",
     args: [
@@ -268,33 +273,18 @@ export default function CreateTokenForm() {
       symbol,
       imageURI,
       refundable ?? false,
-      claimLP ?? false,
+      claimLP    ?? false,
       creatorPreBuys,
       durationSec ?? 0n,
     ],
     value: creatorPreBuys ? parseEther(preBuyAmount || "0") : undefined,
-    chainId: CHAIN.chain.id,
-
+    chainId: CHAIN.chain.id,     
     query: {
       enabled:
-        !!tokenName &&
-        !!symbol &&
-        !!selectedFile &&
-        !!imageURI &&
-        refundable !== null &&
-        claimLP !== null &&
-        durationMin !== null,
+        !!tokenName && !!symbol && !!selectedFile && !!imageURI &&
+        refundable !== null && claimLP !== null && durationMin !== null,
     },
-
-    onError: (err) => {
-      console.error("simulate‑revert:", err);
-      addToast(err.message);
-    },
-  });
-
-  console.log('--- simulate output ---')
-  console.log('sim:', sim)
-  console.log('sim error:', simError)
+  })
 
   const predictedToken  = sim?.result?.[0] as `0x${string}` | undefined
   const predictedLaunch = sim?.result?.[1] as `0x${string}` | undefined
@@ -337,15 +327,15 @@ export default function CreateTokenForm() {
 }
 
   useEffect(() => {
-    if (simError)  addToast(`Simulate error: ${simError.message}`)
+    if (simError)  addToast(`Error: ${simError.message}`)
   }, [simError])
 
   useEffect(() => {
-    if (writeError) addToast(`Transaction error: ${writeError.message}`)
+    if (writeError) addToast(`Error: ${writeError.message}`)
   }, [writeError])
 
   useEffect(() => {
-    if (waitError)  addToast(`Receipt error: ${waitError.message}`)
+    if (waitError)  addToast(`Error: ${waitError.message}`)
   }, [waitError])
 
   const [newTokenAddr, setNewTokenAddr] = useState<`0x${string}` | undefined>()
@@ -610,7 +600,11 @@ export default function CreateTokenForm() {
               <div className="flex flex-col gap-4 mt-4">
                 <Select onValueChange={(val) => {
                   setRefundable(val === 'refundable')
-                  if (!isSomnia) setClaimLP(null)
+                  if (forceTokens) {
+                    setClaimLP(false)
+                  } else {
+                    setClaimLP(null)
+                  }
                   setDurationMin(null)
                   }}>
                   <SelectTrigger
@@ -629,20 +623,38 @@ export default function CreateTokenForm() {
                 </Select>
 
                 <Select
-                  disabled={isSomnia || !typeChosen}
-                  value={isSomnia ? "tokens" : (claimLP === null ? undefined : (claimLP ? "lps" : "tokens"))}
-                  onValueChange={(val)=>{ if (!isSomnia) setClaimLP(val==='lps') }}
+                  disabled={forceTokens || !typeChosen}
+                  value={
+                    forceTokens
+                      ? "tokens"
+                      : claimLP === null
+                        ? undefined
+                        : claimLP
+                          ? "lps"
+                          : "tokens"
+                  }
+                  onValueChange={(val) => {
+                    if (!forceTokens) {
+                      setClaimLP(val === "lps");
+                    }
+                  }}
                 >
-                  <SelectTrigger
-                    className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl"
-                  >
-                    <SelectValue placeholder={isSomnia ? "Tokens" : "Receive"} />
+                  <SelectTrigger className="bg-[#132043] border-0 h-12 text-white placeholder:text-gray-400 rounded-xl">
+                    <SelectValue placeholder="Receive" />
                   </SelectTrigger>
+
                   <SelectContent className="bg-[#0e1a38] rounded-xl border-0 text-white">
-                    <SelectItem className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white" value="tokens">
+                    <SelectItem
+                      value="tokens"
+                      className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                    >
                       Tokens
                     </SelectItem>
-                    <SelectItem className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white" value="lps">
+
+                    <SelectItem
+                      value="lps"
+                      className="data-[highlighted]:bg-[#19c0f4] data-[highlighted]:text-white"
+                    >
                       LPs
                     </SelectItem>
                   </SelectContent>
