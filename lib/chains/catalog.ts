@@ -123,7 +123,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     label: "Somnia Testnet",
     chain: somnia,
     factoryAddress: "0xb6d67069C3a49102F0675Af3F57Fc8070368E32c",
-    nativeSymbol: "ETH",
+    nativeSymbol: "STT",
     nativeDecimals: 18,
     nativeLogo: "/tokens/somnia.png",
     tokenLogo: "/tokens/somnia.png",
@@ -135,7 +135,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     divisors: { priceUsd: 1e8, marketCapUsd: 1e26 },
     envRpc: process.env.NEXT_PUBLIC_SOMNIA_TESTNET_RPC_URL,
     dexName: "QuickSwap",
-    thresholdUsd: 1,
+    thresholdUsd: 5,
   },
 }
 
