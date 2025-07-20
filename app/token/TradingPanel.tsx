@@ -91,11 +91,15 @@ export default function TradingPanel({
     query: { enabled: Boolean(launchAddress), refetchInterval: 1000 },
   });
 
-  const maxBuyBNB  = maxBuyWei ? Number(maxBuyWei / 1_000000000000000000n) : 0;
-  const bnbPaidBNB = buyer && Array.isArray(buyer) && buyer[0] !== undefined
-    ? Number((buyer as bigint[])[0] / 1_000000000000000000n)
+  const maxBuyBNB = maxBuyWei
+    ? Number(formatEther(maxBuyWei))
     : 0;
-  const roomBNB    = Math.max(maxBuyBNB - bnbPaidBNB, 0); 
+
+  const bnbPaidBNB = buyer && Array.isArray(buyer) && buyer[0] !== undefined
+    ? Number(formatEther((buyer as bigint[])[0] as bigint))
+    : 0;
+
+  const roomBNB = Math.max(maxBuyBNB - bnbPaidBNB, 0);
 
   const { data: priceFeed } = useReadContract({
     address: launchAddress,

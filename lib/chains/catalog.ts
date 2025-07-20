@@ -135,7 +135,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     divisors: { priceUsd: 1e8, marketCapUsd: 1e26 },
     envRpc: process.env.NEXT_PUBLIC_SOMNIA_TESTNET_RPC_URL,
     dexName: "QuickSwap",
-    thresholdUsd: 5,
+    thresholdUsd: 1,
   },
 }
 
